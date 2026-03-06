@@ -5,7 +5,7 @@ export const createAreaSchema = z.object({
     .string()
     .min(1, "El nombre del área es obligatorio")
     .max(100, "Máximo 100 caracteres"),
-  estado: z.enum(["ACTIVO", "INACTIVO"]).default("ACTIVO"),
+  estado: z.enum(["ACTIVO", "INACTIVO"]),
 });
 
 export const updateAreaSchema = createAreaSchema.extend({
