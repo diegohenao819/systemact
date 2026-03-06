@@ -1,8 +1,8 @@
-import { Toaster } from "sonner";
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { Geist } from "next/font/google";
 import { Suspense } from "react";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -32,12 +32,12 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="light"
             enableSystem
             disableTransitionOnChange
           >
             {children}
-            <Toaster richColors position="top-right" /> 
+            <Toaster richColors position="top-right" />
           </ThemeProvider>
         </Suspense>
       </body>
