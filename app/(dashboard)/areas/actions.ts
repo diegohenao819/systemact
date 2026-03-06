@@ -1,8 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 import { createAreaSchema, updateAreaSchema } from "@/lib/validations/area";
+import { revalidatePath } from "next/cache";
 
 interface ActionResult {
   success: boolean;
@@ -13,7 +13,9 @@ export async function crearArea(formData: FormData): Promise<ActionResult> {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const raw = {
@@ -23,13 +25,11 @@ export async function crearArea(formData: FormData): Promise<ActionResult> {
 
     const parsed = createAreaSchema.safeParse(raw);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message ?? "Datos inválidos";
+      const firstError = parsed.error.issues[0]?.message ?? "Datos inválidos";
       return { success: false, error: firstError };
     }
 
-    const { error } = await supabase
-      .from("areas")
-      .insert(parsed.data);
+    const { error } = await supabase.from("areas").insert(parsed.data);
 
     if (error) {
       if (error.code === "23505") {
@@ -45,11 +45,15 @@ export async function crearArea(formData: FormData): Promise<ActionResult> {
   }
 }
 
-export async function actualizarArea(formData: FormData): Promise<ActionResult> {
+export async function actualizarArea(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const raw = {
@@ -60,7 +64,7 @@ export async function actualizarArea(formData: FormData): Promise<ActionResult> 
 
     const parsed = updateAreaSchema.safeParse(raw);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message ?? "Datos inválidos";
+      const firstError = parsed.error.issues[0]?.message ?? "Datos inválidos";
       return { success: false, error: firstError };
     }
 
@@ -87,12 +91,14 @@ export async function actualizarArea(formData: FormData): Promise<ActionResult> 
 
 export async function toggleEstadoArea(
   id_area: number,
-  nuevoEstado: "ACTIVO" | "INACTIVO"
+  nuevoEstado: "ACTIVO" | "INACTIVO",
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const { error } = await supabase
