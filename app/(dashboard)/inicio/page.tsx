@@ -5,10 +5,25 @@ import {
   Building2,
   LayoutGrid,
   ArrowLeftRight,
+  type LucideIcon,
 } from "lucide-react";
+import { Suspense } from "react";
 
-async function getStats() {
+interface StatCard {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  color: string;
+}
+
+async function StatsCards() {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/auth/login");
 
   const [bienes, sedes, areas, transferencias] = await Promise.all([
     supabase
@@ -27,63 +42,81 @@ async function getStats() {
       .select("id_transferencia", { count: "exact", head: true }),
   ]);
 
-  return {
-    bienesActivos: bienes.count ?? 0,
-    totalSedes: sedes.count ?? 0,
-    totalAreas: areas.count ?? 0,
-    totalTransferencias: transferencias.count ?? 0,
-  };
-}
-
-export default async function InicioPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/auth/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nombre, rol")
-    .eq("id", user.id)
-    .single();
-
-  const stats = await getStats();
-
-  const cards = [
+  const cards: StatCard[] = [
     {
       label: "Bienes Activos",
-      value: stats.bienesActivos,
+      value: bienes.count ?? 0,
       icon: Package,
       color: "text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300",
     },
     {
       label: "Sedes",
-      value: stats.totalSedes,
+      value: sedes.count ?? 0,
       icon: Building2,
-      color:
-        "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300",
+      color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-300",
     },
     {
       label: "Áreas Activas",
-      value: stats.totalAreas,
+      value: areas.count ?? 0,
       icon: LayoutGrid,
-      color:
-        "text-purple-600 bg-purple-100 dark:bg-purple-900/50 dark:text-purple-300",
+      color: "text-purple-600 bg-purple-100 dark:bg-purple-900/50 dark:text-purple-300",
     },
     {
       label: "Transferencias",
-      value: stats.totalTransferencias,
+      value: transferencias.count ?? 0,
       icon: ArrowLeftRight,
-      color:
-        "text-amber-600 bg-amber-100 dark:bg-amber-900/50 dark:text-amber-300",
+      color: "text-amber-600 bg-amber-100 dark:bg-amber-900/50 dark:text-amber-300",
     },
   ];
 
   return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card) => {
+        const Icon = card.icon;
+        return (
+          <div
+            key={card.label}
+            className="rounded-xl border bg-card p-6 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                {card.label}
+              </p>
+              <div className={`rounded-lg p-2 ${card.color}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <p className="text-3xl font-bold">{card.value}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatsLoading() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-8 w-8 bg-muted rounded-lg animate-pulse" />
+          </div>
+          <div className="mt-3">
+            <div className="h-9 w-16 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function InicioPage() {
+  return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           Panel de Control
@@ -93,32 +126,10 @@ export default async function InicioPage() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.label}
-              className="rounded-xl border bg-card p-6 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">
-                  {card.label}
-                </p>
-                <div className={`rounded-lg p-2 ${card.color}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <p className="text-3xl font-bold">{card.value}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <Suspense fallback={<StatsLoading />}>
+        <StatsCards />
+      </Suspense>
 
-      {/* Placeholder para contenido futuro */}
       <div className="rounded-xl border bg-card p-8 text-center">
         <p className="text-muted-foreground">
           Aquí se mostrarán gráficos y actividad reciente en fases posteriores.
