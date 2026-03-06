@@ -1,8 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 import { createSedeSchema, updateSedeSchema } from "@/lib/validations/sede";
+import { revalidatePath } from "next/cache";
 
 interface ActionResult {
   success: boolean;
@@ -13,7 +13,9 @@ export async function crearSede(formData: FormData): Promise<ActionResult> {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const raw = {
@@ -25,13 +27,11 @@ export async function crearSede(formData: FormData): Promise<ActionResult> {
 
     const parsed = createSedeSchema.safeParse(raw);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message ?? "Datos inválidos";
+      const firstError = parsed.error.issues[0]?.message ?? "Datos inválidos";
       return { success: false, error: firstError };
     }
 
-    const { error } = await supabase
-      .from("sedes")
-      .insert(parsed.data);
+    const { error } = await supabase.from("sedes").insert(parsed.data);
 
     if (error) {
       if (error.code === "23505") {
@@ -47,11 +47,15 @@ export async function crearSede(formData: FormData): Promise<ActionResult> {
   }
 }
 
-export async function actualizarSede(formData: FormData): Promise<ActionResult> {
+export async function actualizarSede(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No autenticado" };
 
     const raw = {
@@ -64,7 +68,7 @@ export async function actualizarSede(formData: FormData): Promise<ActionResult> 
 
     const parsed = updateSedeSchema.safeParse(raw);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message ?? "Datos inválidos";
+      const firstError = parsed.error.issues[0]?.message ?? "Datos inválidos";
       return { success: false, error: firstError };
     }
 
