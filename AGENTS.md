@@ -405,6 +405,7 @@ Cada vez que ocurre algo sobre un bien, se debe insertar un registro:
 # .env.local (NUNCA commitear)
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOi...
+NEXT_PUBLIC_SITE_URL=https://systemact.vercel.app  # Base URL pública para links de auth
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...   # Solo server-side, NUNCA en cliente
 ```
 

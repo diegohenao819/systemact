@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, getBaseUrl } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ export function SignUpForm({
     }
 
     try {
-      const confirmUrl = new URL("/auth/confirm", window.location.origin);
+      const confirmUrl = new URL("/auth/confirm", getBaseUrl());
       confirmUrl.searchParams.set("next", "/inicio");
 
       const { error } = await supabase.auth.signUp({
