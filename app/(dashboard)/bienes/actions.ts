@@ -43,60 +43,35 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       return { success: false, error: firstError };
     }
 
-    // Obtener el prefijo del tipo de bien para generar código
-    const { data: caract } = await supabase
-      .from("caracteristicas")
-      .select("codigo")
-      .eq("id_caracteristica", parsed.data.id_caracteristica)
-      .single();
-
-    if (!caract) {
-      return { success: false, error: "Tipo de bien no encontrado" };
-    }
-
-    // Generar código automático
-    const { data: codigoData, error: codigoError } = await supabase.rpc(
-      "generar_codigo_bien",
-      { prefijo: caract.codigo }
-    );
-
-    if (codigoError || !codigoData) {
-      return { success: false, error: "Error al generar el código del bien" };
-    }
-
-    // Determinar responsable: UUID del sistema o texto libre
     const tieneResponsableId =
       parsed.data.id_responsable && parsed.data.id_responsable.length > 0;
     const tieneResponsableTexto =
       parsed.data.responsable_texto && parsed.data.responsable_texto.length > 0;
 
-    const { data: nuevoBien, error: insertError } = await supabase
-      .from("bienes")
-      .insert({
-        codigo_generado: codigoData,
-        nombre: parsed.data.nombre,
-        id_caracteristica: parsed.data.id_caracteristica,
-        id_sede: parsed.data.id_sede,
-        id_area: parsed.data.id_area,
-        id_responsable: tieneResponsableId
-          ? parsed.data.id_responsable
-          : null,
-        responsable_texto: tieneResponsableTexto
+    const { error: createError } = await supabase.rpc(
+      "crear_bien_con_auditoria",
+      {
+        p_nombre: parsed.data.nombre,
+        p_id_caracteristica: parsed.data.id_caracteristica,
+        p_id_sede: parsed.data.id_sede,
+        p_id_area: parsed.data.id_area,
+        p_id_responsable: tieneResponsableId ? parsed.data.id_responsable : null,
+        p_responsable_texto: tieneResponsableTexto
           ? parsed.data.responsable_texto
           : null,
-        serial: parsed.data.serial || null,
-        placa: parsed.data.placa || null,
-        cantidad: parsed.data.cantidad,
-        valor_unitario: parsed.data.valor_unitario,
-        estado: parsed.data.estado,
-        observaciones: parsed.data.observaciones || null,
-      })
-      .select("id_bien, codigo_generado")
-      .single();
+        p_serial: parsed.data.serial || null,
+        p_placa: parsed.data.placa || null,
+        p_cantidad: parsed.data.cantidad,
+        p_valor_unitario: parsed.data.valor_unitario,
+        p_estado: parsed.data.estado,
+        p_observaciones: parsed.data.observaciones || null,
+        p_usuario_responsable: user.id,
+      },
+    );
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        if (insertError.message.includes("placa")) {
+    if (createError) {
+      if (createError.code === "23505") {
+        if (createError.message.includes("placa")) {
           return { success: false, error: "Ya existe un bien con esa placa" };
         }
         return { success: false, error: "Ya existe un registro duplicado" };
@@ -104,18 +79,11 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Error al crear el bien" };
     }
 
-    // Registrar en auditoría
-    await supabase.from("movimiento_bienes").insert({
-      id_bien: nuevoBien.id_bien,
-      tipo_movimiento: "REGISTRO",
-      detalle: `Bien registrado: ${parsed.data.nombre} (${nuevoBien.codigo_generado})`,
-      usuario_responsable: user.id,
-    });
-
     revalidatePath("/bienes");
     revalidatePath("/inicio");
     return { success: true };
-  } catch {
+  } catch (error) {
+    console.error("Error inesperado al crear el bien", error);
     return { success: false, error: "Error inesperado al crear el bien" };
   }
 }
@@ -161,27 +129,24 @@ export async function actualizarBien(
     const tieneResponsableTexto =
       updateData.responsable_texto && updateData.responsable_texto.length > 0;
 
-    const { error } = await supabase
-      .from("bienes")
-      .update({
-        nombre: updateData.nombre,
-        id_caracteristica: updateData.id_caracteristica,
-        id_sede: updateData.id_sede,
-        id_area: updateData.id_area,
-        id_responsable: tieneResponsableId
-          ? updateData.id_responsable
-          : null,
-        responsable_texto: tieneResponsableTexto
-          ? updateData.responsable_texto
-          : null,
-        serial: updateData.serial || null,
-        placa: updateData.placa || null,
-        cantidad: updateData.cantidad,
-        valor_unitario: updateData.valor_unitario,
-        estado: updateData.estado,
-        observaciones: updateData.observaciones || null,
-      })
-      .eq("id_bien", id_bien);
+    const { error } = await supabase.rpc("actualizar_bien_con_auditoria", {
+      p_id_bien: id_bien,
+      p_nombre: updateData.nombre,
+      p_id_caracteristica: updateData.id_caracteristica,
+      p_id_sede: updateData.id_sede,
+      p_id_area: updateData.id_area,
+      p_id_responsable: tieneResponsableId ? updateData.id_responsable : null,
+      p_responsable_texto: tieneResponsableTexto
+        ? updateData.responsable_texto
+        : null,
+      p_serial: updateData.serial || null,
+      p_placa: updateData.placa || null,
+      p_cantidad: updateData.cantidad,
+      p_valor_unitario: updateData.valor_unitario,
+      p_estado: updateData.estado,
+      p_observaciones: updateData.observaciones || null,
+      p_usuario_responsable: user.id,
+    });
 
     if (error) {
       if (error.code === "23505") {
@@ -193,18 +158,11 @@ export async function actualizarBien(
       return { success: false, error: "Error al actualizar el bien" };
     }
 
-    // Registrar en auditoría
-    await supabase.from("movimiento_bienes").insert({
-      id_bien: id_bien,
-      tipo_movimiento: "MODIFICACION",
-      detalle: `Bien modificado: ${updateData.nombre}`,
-      usuario_responsable: user.id,
-    });
-
     revalidatePath("/bienes");
     revalidatePath("/inicio");
     return { success: true };
-  } catch {
+  } catch (error) {
+    console.error("Error inesperado al actualizar el bien", error);
     return { success: false, error: "Error inesperado al actualizar" };
   }
 }

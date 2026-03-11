@@ -40,11 +40,14 @@ export function SignUpForm({
     }
 
     try {
+      const confirmUrl = new URL("/auth/confirm", window.location.origin);
+      confirmUrl.searchParams.set("next", "/inicio");
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          emailRedirectTo: confirmUrl.toString(),
         },
       });
       if (error) throw error;

@@ -180,6 +180,7 @@ CREATE TABLE public.bienes (
   nombre TEXT NOT NULL,
   id_caracteristica INTEGER REFERENCES public.caracteristicas(id_caracteristica),
   id_responsable UUID REFERENCES public.profiles(id),
+  responsable_texto TEXT,                    -- Responsable manual si no existe en profiles
   id_sede INTEGER NOT NULL REFERENCES public.sedes(id_sede),
   id_area INTEGER REFERENCES public.areas(id_area),
   serial TEXT,
@@ -354,6 +355,7 @@ Estas reglas deben respetarse siempre, independientemente del módulo:
 - El **código** se genera automáticamente: `{PREFIJO}-{AÑO}-{CORRELATIVO_3_DIGITOS}` (ej: `COMP-2026-001`)
 - El **valor_total** es calculado (cantidad × valor_unitario). En PostgreSQL es columna GENERATED. En el frontend se muestra en tiempo real pero no se envía al servidor
 - La **placa** es única cuando se proporciona. Puede ser nula
+- El **responsable** puede seleccionarse desde `profiles`, escribirse manualmente en `responsable_texto` o dejarse vacío
 - Un bien **nunca se elimina** físicamente. Se cambia su estado a `DE BAJA` (Soft Delete)
 - Las **imágenes** se suben a Supabase Storage en el bucket `bienes` con ruta: `bienes/{id_bien}/{filename}`
 
@@ -402,7 +404,7 @@ Cada vez que ocurre algo sobre un bien, se debe insertar un registro:
 ```env
 # .env.local (NUNCA commitear)
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOi...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...   # Solo server-side, NUNCA en cliente
 ```
 
