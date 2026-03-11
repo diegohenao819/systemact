@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createBienActionSchema, updateBienActionSchema } from "@/lib/validations/bien";
+import {
+  createBienActionSchema,
+  updateBienActionSchema,
+} from "@/lib/validations/bien";
 
 interface ActionResult {
   success: boolean;
@@ -24,6 +27,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       id_sede: formData.get("id_sede"),
       id_area: formData.get("id_area"),
       id_responsable: formData.get("id_responsable"),
+      responsable_texto: formData.get("responsable_texto"),
       serial: formData.get("serial"),
       placa: formData.get("placa"),
       cantidad: formData.get("cantidad"),
@@ -32,7 +36,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       observaciones: formData.get("observaciones"),
     };
 
-   const parsed = createBienActionSchema.safeParse(raw);
+    const parsed = createBienActionSchema.safeParse(raw);
     if (!parsed.success) {
       const firstError =
         parsed.error.issues[0]?.message ?? "Datos inválidos";
@@ -50,7 +54,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Tipo de bien no encontrado" };
     }
 
-    // Generar código automático usando la función de PostgreSQL
+    // Generar código automático
     const { data: codigoData, error: codigoError } = await supabase.rpc(
       "generar_codigo_bien",
       { prefijo: caract.codigo }
@@ -60,7 +64,12 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Error al generar el código del bien" };
     }
 
-    // Insertar el bien
+    // Determinar responsable: UUID del sistema o texto libre
+    const tieneResponsableId =
+      parsed.data.id_responsable && parsed.data.id_responsable.length > 0;
+    const tieneResponsableTexto =
+      parsed.data.responsable_texto && parsed.data.responsable_texto.length > 0;
+
     const { data: nuevoBien, error: insertError } = await supabase
       .from("bienes")
       .insert({
@@ -69,7 +78,12 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
         id_caracteristica: parsed.data.id_caracteristica,
         id_sede: parsed.data.id_sede,
         id_area: parsed.data.id_area,
-        id_responsable: parsed.data.id_responsable,
+        id_responsable: tieneResponsableId
+          ? parsed.data.id_responsable
+          : null,
+        responsable_texto: tieneResponsableTexto
+          ? parsed.data.responsable_texto
+          : null,
         serial: parsed.data.serial || null,
         placa: parsed.data.placa || null,
         cantidad: parsed.data.cantidad,
@@ -124,6 +138,7 @@ export async function actualizarBien(
       id_sede: formData.get("id_sede"),
       id_area: formData.get("id_area"),
       id_responsable: formData.get("id_responsable"),
+      responsable_texto: formData.get("responsable_texto"),
       serial: formData.get("serial"),
       placa: formData.get("placa"),
       cantidad: formData.get("cantidad"),
@@ -141,6 +156,11 @@ export async function actualizarBien(
 
     const { id_bien, ...updateData } = parsed.data;
 
+    const tieneResponsableId =
+      updateData.id_responsable && updateData.id_responsable.length > 0;
+    const tieneResponsableTexto =
+      updateData.responsable_texto && updateData.responsable_texto.length > 0;
+
     const { error } = await supabase
       .from("bienes")
       .update({
@@ -148,7 +168,12 @@ export async function actualizarBien(
         id_caracteristica: updateData.id_caracteristica,
         id_sede: updateData.id_sede,
         id_area: updateData.id_area,
-        id_responsable: updateData.id_responsable,
+        id_responsable: tieneResponsableId
+          ? updateData.id_responsable
+          : null,
+        responsable_texto: tieneResponsableTexto
+          ? updateData.responsable_texto
+          : null,
         serial: updateData.serial || null,
         placa: updateData.placa || null,
         cantidad: updateData.cantidad,

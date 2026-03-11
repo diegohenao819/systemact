@@ -20,6 +20,7 @@ async function BienesContent() {
       valor_unitario,
       valor_total,
       placa,
+      responsable_texto,
       created_at,
       sedes ( nombre_sede ),
       areas ( nombre_area ),
@@ -67,7 +68,6 @@ function BienesLoading() {
 export default function BienesPage() {
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/50">
@@ -88,7 +88,6 @@ export default function BienesPage() {
         </Button>
       </div>
 
-      {/* Table */}
       <Suspense fallback={<BienesLoading />}>
         <BienesContent />
       </Suspense>

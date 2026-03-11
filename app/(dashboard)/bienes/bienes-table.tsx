@@ -34,6 +34,7 @@ interface BienRow {
   valor_unitario: number;
   valor_total: number;
   placa: string | null;
+  responsable_texto: string | null;
   created_at: string;
   sedes: { nombre_sede: string }[] | null;
   areas: { nombre_area: string }[] | null;
@@ -111,18 +112,32 @@ const columns: ColumnDef<BienRow>[] = [
   {
     id: "responsable",
     header: "Responsable",
-    accessorFn: (row) =>
-      row.profiles?.[0]
-        ? `${row.profiles[0].nombre} ${row.profiles[0].apellido}`
-        : "",
-    cell: ({ row }) =>
-      row.original.profiles?.[0] ? (
-        <span className="text-sm">
-          {row.original.profiles[0].nombre} {row.original.profiles[0].apellido}
-        </span>
-      ) : (
-        <span className="text-sm text-muted-foreground">—</span>
-      ),
+    accessorFn: (row) => {
+      if (row.profiles?.[0]) {
+        return `${row.profiles[0].nombre} ${row.profiles[0].apellido}`;
+      }
+      return row.responsable_texto ?? "";
+    },
+    cell: ({ row }) => {
+      const profile = row.original.profiles?.[0];
+      const texto = row.original.responsable_texto;
+
+      if (profile) {
+        return (
+          <span className="text-sm">
+            {profile.nombre} {profile.apellido}
+          </span>
+        );
+      }
+      if (texto) {
+        return (
+          <span className="text-sm italic text-muted-foreground">
+            {texto}
+          </span>
+        );
+      }
+      return <span className="text-sm text-muted-foreground">—</span>;
+    },
   },
   {
     accessorKey: "estado",
@@ -203,7 +218,6 @@ export function BienesTable({ data }: BienesTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Buscador */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -214,7 +228,6 @@ export function BienesTable({ data }: BienesTableProps) {
         />
       </div>
 
-      {/* Tabla */}
       <div className="rounded-lg border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
@@ -261,7 +274,6 @@ export function BienesTable({ data }: BienesTableProps) {
         </Table>
       </div>
 
-      {/* Footer: paginación + resumen */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground space-y-1">
           <p>

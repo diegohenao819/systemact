@@ -11,13 +11,12 @@ async function EditBienContent({ id }: { id: string }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  // Cargar el bien existente y datos de dropdowns en paralelo
   const [bienRes, sedesRes, areasRes, caractRes, perfilesRes] =
     await Promise.all([
       supabase
         .from("bienes")
         .select(
-          "id_bien, nombre, id_caracteristica, id_sede, id_area, id_responsable, serial, placa, cantidad, valor_unitario, estado, observaciones, codigo_generado"
+          "id_bien, nombre, id_caracteristica, id_sede, id_area, id_responsable, responsable_texto, serial, placa, cantidad, valor_unitario, estado, observaciones, codigo_generado"
         )
         .eq("id_bien", Number(id))
         .single(),
