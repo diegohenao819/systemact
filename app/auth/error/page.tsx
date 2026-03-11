@@ -16,7 +16,7 @@ async function ErrorContent({
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          An unspecified error occurred.
+         Un error desconocido ocurrió. Por favor, intenta de nuevo más tarde.
         </p>
       )}
     </>
