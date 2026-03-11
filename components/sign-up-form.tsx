@@ -1,7 +1,5 @@
 "use client";
 
-import { cn, getBaseUrl } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -20,6 +20,8 @@ export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -33,27 +35,35 @@ export function SignUpForm({
     setIsLoading(true);
     setError(null);
 
+    if (!nombre.trim() || !apellido.trim()) {
+      setError("El nombre y apellido son obligatorios");
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== repeatPassword) {
-      setError("Passwords do not match");
+      setError("Las contraseñas no coinciden");
       setIsLoading(false);
       return;
     }
 
     try {
-      const confirmUrl = new URL("/auth/confirm", getBaseUrl());
-      confirmUrl.searchParams.set("next", "/inicio");
-
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: confirmUrl.toString(),
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          data: {
+            nombre: nombre.trim(),
+            apellido: apellido.trim(),
+          },
         },
       });
+
       if (error) throw error;
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : "Ocurrió un error");
     } finally {
       setIsLoading(false);
     }
@@ -63,27 +73,49 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
+          <CardDescription>
+            Ingresa tus datos para registrarte en SYSTEMACT
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="nombre">Nombre *</Label>
+                  <Input
+                    id="nombre"
+                    placeholder="Tu nombre"
+                    required
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="apellido">Apellido *</Label>
+                  <Input
+                    id="apellido"
+                    placeholder="Tu apellido"
+                    required
+                    value={apellido}
+                    onChange={(e) => setApellido(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Correo electrónico *</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="correo@conviventia.org"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Contraseña *</Label>
                 <Input
                   id="password"
                   type="password"
@@ -93,9 +125,7 @@ export function SignUpForm({
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="repeat-password">Repeat Password</Label>
-                </div>
+                <Label htmlFor="repeat-password">Repetir Contraseña *</Label>
                 <Input
                   id="repeat-password"
                   type="password"
@@ -106,13 +136,13 @@ export function SignUpForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating an account..." : "Sign up"}
+                {isLoading ? "Creando cuenta..." : "Registrarse"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
+              ¿Ya tienes cuenta?{" "}
               <Link href="/auth/login" className="underline underline-offset-4">
-                Login
+                Iniciar sesión
               </Link>
             </div>
           </form>
