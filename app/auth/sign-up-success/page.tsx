@@ -13,15 +13,14 @@ export default function Page() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">
-                Thank you for signing up!
-              </CardTitle>
-              <CardDescription>Check your email to confirm</CardDescription>
+              <CardTitle className="text-2xl">¡Registro exitoso!</CardTitle>
+              <CardDescription>Revisa tu correo electrónico</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to
-                confirm your account before signing in.
+                Te hemos enviado un correo de confirmación. Haz clic en el
+                enlace del correo para activar tu cuenta e iniciar sesión en
+                SYSTEMACT.
               </p>
             </CardContent>
           </Card>
