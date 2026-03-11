@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createBienSchema, updateBienSchema } from "@/lib/validations/bien";
+import { createBienActionSchema, updateBienActionSchema } from "@/lib/validations/bien";
 
 interface ActionResult {
   success: boolean;
@@ -32,7 +32,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       observaciones: formData.get("observaciones"),
     };
 
-    const parsed = createBienSchema.safeParse(raw);
+   const parsed = createBienActionSchema.safeParse(raw);
     if (!parsed.success) {
       const firstError =
         parsed.error.issues[0]?.message ?? "Datos inválidos";
@@ -132,7 +132,7 @@ export async function actualizarBien(
       observaciones: formData.get("observaciones"),
     };
 
-    const parsed = updateBienSchema.safeParse(raw);
+    const parsed = updateBienActionSchema.safeParse(raw);
     if (!parsed.success) {
       const firstError =
         parsed.error.issues[0]?.message ?? "Datos inválidos";

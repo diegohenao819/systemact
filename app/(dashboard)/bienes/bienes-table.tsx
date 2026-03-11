@@ -35,9 +35,9 @@ interface BienRow {
   valor_total: number;
   placa: string | null;
   created_at: string;
-  sedes: { nombre_sede: string } | null;
-  areas: { nombre_area: string } | null;
-  profiles: { nombre: string; apellido: string } | null;
+  sedes: { nombre_sede: string }[] | null;
+  areas: { nombre_area: string }[] | null;
+  profiles: { nombre: string; apellido: string }[] | null;
 }
 
 const formatCOP = (value: number) =>
@@ -91,20 +91,20 @@ const columns: ColumnDef<BienRow>[] = [
   {
     id: "sede",
     header: "Sede",
-    accessorFn: (row) => row.sedes?.nombre_sede ?? "",
+    accessorFn: (row) => row.sedes?.[0]?.nombre_sede ?? "",
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.sedes?.nombre_sede ?? "—"}
+        {row.original.sedes?.[0]?.nombre_sede ?? "—"}
       </span>
     ),
   },
   {
     id: "area",
     header: "Área",
-    accessorFn: (row) => row.areas?.nombre_area ?? "",
+    accessorFn: (row) => row.areas?.[0]?.nombre_area ?? "",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {row.original.areas?.nombre_area ?? "—"}
+        {row.original.areas?.[0]?.nombre_area ?? "—"}
       </span>
     ),
   },
@@ -112,13 +112,13 @@ const columns: ColumnDef<BienRow>[] = [
     id: "responsable",
     header: "Responsable",
     accessorFn: (row) =>
-      row.profiles
-        ? `${row.profiles.nombre} ${row.profiles.apellido}`
+      row.profiles?.[0]
+        ? `${row.profiles[0].nombre} ${row.profiles[0].apellido}`
         : "",
     cell: ({ row }) =>
-      row.original.profiles ? (
+      row.original.profiles?.[0] ? (
         <span className="text-sm">
-          {row.original.profiles.nombre} {row.original.profiles.apellido}
+          {row.original.profiles[0].nombre} {row.original.profiles[0].apellido}
         </span>
       ) : (
         <span className="text-sm text-muted-foreground">—</span>
@@ -197,7 +197,6 @@ export function BienesTable({ data }: BienesTableProps) {
     },
   });
 
-  // Sumar valor total de los bienes filtrados
   const totalValor = table
     .getFilteredRowModel()
     .rows.reduce((sum, row) => sum + (row.original.valor_total ?? 0), 0);
