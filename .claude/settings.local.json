@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nslookup qnvzilzirxkrhzlnhlqi.supabase.co)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

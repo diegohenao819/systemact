@@ -34,6 +34,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       valor_unitario: formData.get("valor_unitario"),
       estado: formData.get("estado"),
       observaciones: formData.get("observaciones"),
+      imagen_url: formData.get("imagen_url"),
     };
 
     const parsed = createBienActionSchema.safeParse(raw);
@@ -66,6 +67,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
         p_estado: parsed.data.estado,
         p_observaciones: parsed.data.observaciones || null,
         p_usuario_responsable: user.id,
+        p_imagen_url: parsed.data.imagen_url || null,
       },
     );
 
@@ -113,6 +115,7 @@ export async function actualizarBien(
       valor_unitario: formData.get("valor_unitario"),
       estado: formData.get("estado"),
       observaciones: formData.get("observaciones"),
+      imagen_url: formData.get("imagen_url"),
     };
 
     const parsed = updateBienActionSchema.safeParse(raw);
@@ -146,6 +149,7 @@ export async function actualizarBien(
       p_estado: updateData.estado,
       p_observaciones: updateData.observaciones || null,
       p_usuario_responsable: user.id,
+      p_imagen_url: updateData.imagen_url || null,
     });
 
     if (error) {

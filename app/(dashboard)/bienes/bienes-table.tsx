@@ -11,8 +11,9 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import Image from "next/image";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Eye } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Eye, ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BienDetailDialog } from "./bien-detail-dialog";
 
 interface BienRow {
   id_bien: number;
@@ -34,11 +36,23 @@ interface BienRow {
   valor_unitario: number;
   valor_total: number;
   placa: string | null;
+  serial: string | null;
+  observaciones: string | null;
+  imagen_url: string | null;
   responsable_texto: string | null;
   created_at: string;
-  sedes: { nombre_sede: string }[] | null;
-  areas: { nombre_area: string }[] | null;
-  profiles: { nombre: string; apellido: string }[] | null;
+  sedes: { nombre_sede: string } | { nombre_sede: string }[] | null;
+  areas: { nombre_area: string } | { nombre_area: string }[] | null;
+  profiles:
+    | { nombre: string; apellido: string }
+    | { nombre: string; apellido: string }[]
+    | null;
+}
+
+// Supabase devuelve objeto o array según cómo infiere la relación.
+function unwrap<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
 }
 
 const formatCOP = (value: number) =>
@@ -55,6 +69,34 @@ const estadoColors: Record<string, string> = {
 };
 
 const columns: ColumnDef<BienRow>[] = [
+  {
+    id: "imagen",
+    header: "",
+    cell: ({ row }) => {
+      const url = row.original.imagen_url;
+      if (!url) {
+        return (
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+            <ImageOff className="h-4 w-4" />
+          </div>
+        );
+      }
+      return (
+        <div className="relative h-10 w-10 overflow-hidden rounded-md border bg-muted">
+          <Image
+            src={url}
+            alt={row.original.nombre}
+            fill
+            sizes="40px"
+            className="object-cover"
+            unoptimized
+          />
+        </div>
+      );
+    },
+    size: 50,
+    enableSorting: false,
+  },
   {
     accessorKey: "codigo_generado",
     header: "Código",
@@ -92,20 +134,20 @@ const columns: ColumnDef<BienRow>[] = [
   {
     id: "sede",
     header: "Sede",
-    accessorFn: (row) => row.sedes?.[0]?.nombre_sede ?? "",
+    accessorFn: (row) => unwrap(row.sedes)?.nombre_sede ?? "",
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.sedes?.[0]?.nombre_sede ?? "—"}
+        {unwrap(row.original.sedes)?.nombre_sede ?? "—"}
       </span>
     ),
   },
   {
     id: "area",
     header: "Área",
-    accessorFn: (row) => row.areas?.[0]?.nombre_area ?? "",
+    accessorFn: (row) => unwrap(row.areas)?.nombre_area ?? "",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {row.original.areas?.[0]?.nombre_area ?? "—"}
+        {unwrap(row.original.areas)?.nombre_area ?? "—"}
       </span>
     ),
   },
@@ -113,13 +155,12 @@ const columns: ColumnDef<BienRow>[] = [
     id: "responsable",
     header: "Responsable",
     accessorFn: (row) => {
-      if (row.profiles?.[0]) {
-        return `${row.profiles[0].nombre} ${row.profiles[0].apellido}`;
-      }
+      const profile = unwrap(row.profiles);
+      if (profile) return `${profile.nombre} ${profile.apellido}`;
       return row.responsable_texto ?? "";
     },
     cell: ({ row }) => {
-      const profile = row.original.profiles?.[0];
+      const profile = unwrap(row.original.profiles);
       const texto = row.original.responsable_texto;
 
       if (profile) {
@@ -179,13 +220,24 @@ const columns: ColumnDef<BienRow>[] = [
     id: "acciones",
     header: "",
     cell: ({ row }) => (
-      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-        <Link href={`/bienes/${row.original.id_bien}`}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        asChild
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Link
+          href={`/bienes/${row.original.id_bien}`}
+          aria-label="Editar bien"
+          title="Editar"
+        >
           <Eye className="h-4 w-4" />
         </Link>
       </Button>
     ),
     size: 50,
+    enableSorting: false,
   },
 ];
 
@@ -196,6 +248,9 @@ interface BienesTableProps {
 export function BienesTable({ data }: BienesTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [bienSeleccionado, setBienSeleccionado] = useState<BienRow | null>(
+    null,
+  );
 
   const table = useReactTable({
     data,
@@ -249,7 +304,11 @@ export function BienesTable({ data }: BienesTableProps) {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setBienSeleccionado(row.original)}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
@@ -307,6 +366,14 @@ export function BienesTable({ data }: BienesTableProps) {
           </Button>
         </div>
       </div>
+
+      <BienDetailDialog
+        bien={bienSeleccionado}
+        open={!!bienSeleccionado}
+        onOpenChange={(open) => {
+          if (!open) setBienSeleccionado(null);
+        }}
+      />
     </div>
   );
 }

@@ -10,15 +10,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
 import { createBienSchema, type CreateBienInput } from "@/lib/validations/bien";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, PenLine, Save, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  ImagePlus,
+  Loader2,
+  PenLine,
+  Save,
+  UserRound,
+  X,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { actualizarBien, crearBien } from "./actions";
+
+const MAX_IMAGE_SIZE_MB = 5;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface Sede {
   id_sede: number;
@@ -57,6 +70,7 @@ interface BienExistente {
   valor_unitario: number;
   estado: string;
   observaciones: string | null;
+  imagen_url: string | null;
 }
 
 interface BienFormProps {
@@ -75,6 +89,9 @@ export function BienForm({
   bien,
 }: BienFormProps) {
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagenUrl, setImagenUrl] = useState<string>(bien?.imagen_url ?? "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const isEditing = !!bien;
 
@@ -98,6 +115,7 @@ export function BienForm({
       valor_unitario: bien?.valor_unitario ?? 0,
       estado: (bien?.estado as "ACTIVO" | "INACTIVO") ?? "ACTIVO",
       observaciones: bien?.observaciones ?? "",
+      imagen_url: bien?.imagen_url ?? "",
     },
   });
 
@@ -112,6 +130,61 @@ export function BienForm({
     if (caract && !form.getValues("nombre")) {
       form.setValue("nombre", caract.descripcion);
     }
+  };
+
+  const handleImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("Formato no soportado. Usa JPG, PNG o WEBP.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+      toast.error(`La imagen no puede superar ${MAX_IMAGE_SIZE_MB} MB.`);
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const nombreArchivo = `${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("bienes")
+        .upload(nombreArchivo, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        toast.error("No se pudo subir la imagen");
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("bienes").getPublicUrl(nombreArchivo);
+
+      setImagenUrl(publicUrl);
+      form.setValue("imagen_url", publicUrl);
+      toast.success("Imagen cargada");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagenUrl("");
+    form.setValue("imagen_url", "");
   };
 
   const toggleModoResponsable = () => {
@@ -142,6 +215,7 @@ export function BienForm({
     formData.set("valor_unitario", String(data.valor_unitario));
     formData.set("estado", data.estado);
     formData.set("observaciones", data.observaciones ?? "");
+    formData.set("imagen_url", imagenUrl);
 
     if (isEditing) {
       formData.set("id_bien", String(bien.id_bien));
@@ -445,6 +519,90 @@ export function BienForm({
           </div>
         </div>
 
+        {/* ── Imagen ── */}
+        <div className="rounded-lg border bg-card p-6 space-y-4">
+          <div>
+            <h2 className="font-semibold text-base">Imagen</h2>
+            <p className="text-xs text-muted-foreground">
+              Opcional. JPG, PNG o WEBP — máx. {MAX_IMAGE_SIZE_MB} MB.
+            </p>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageChange}
+            disabled={uploadingImage}
+          />
+
+          {imagenUrl ? (
+            <div className="flex items-start gap-4">
+              <div className="relative h-32 w-32 overflow-hidden rounded-md border bg-muted">
+                <Image
+                  src={imagenUrl}
+                  alt="Imagen del bien"
+                  fill
+                  sizes="128px"
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Subiendo...
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      Reemplazar
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveImage}
+                  disabled={uploadingImage}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Quitar imagen
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="h-4 w-4 mr-2" />
+                  Subir imagen
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
         {/* ── Observaciones ── */}
         <div className="rounded-lg border bg-card p-6 space-y-4">
           <h2 className="font-semibold text-base">Observaciones</h2>
@@ -460,7 +618,7 @@ export function BienForm({
           <Button type="button" variant="outline" asChild>
             <Link href="/bienes">Cancelar</Link>
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || uploadingImage}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

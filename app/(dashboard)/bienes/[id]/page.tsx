@@ -16,7 +16,7 @@ async function EditBienContent({ id }: { id: string }) {
       supabase
         .from("bienes")
         .select(
-          "id_bien, nombre, id_caracteristica, id_sede, id_area, id_responsable, responsable_texto, serial, placa, cantidad, valor_unitario, estado, observaciones, codigo_generado"
+          "id_bien, nombre, id_caracteristica, id_sede, id_area, id_responsable, responsable_texto, serial, placa, cantidad, valor_unitario, estado, observaciones, codigo_generado, imagen_url"
         )
         .eq("id_bien", Number(id))
         .single(),

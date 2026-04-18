@@ -14,6 +14,7 @@ export const createBienSchema = z
     valor_unitario: z.number().nonnegative("El valor no puede ser negativo"),
     estado: z.enum(["ACTIVO", "INACTIVO"]),
     observaciones: z.string().optional().or(z.literal("")),
+    imagen_url: z.string().url().optional().or(z.literal("")),
   });
 
 // Schema para Server Actions (recibe strings de FormData)
@@ -31,6 +32,7 @@ export const createBienActionSchema = z
     valor_unitario: z.coerce.number().nonnegative("El valor no puede ser negativo"),
     estado: z.enum(["ACTIVO", "INACTIVO"]),
     observaciones: z.string().optional().or(z.literal("")),
+    imagen_url: z.string().optional().or(z.literal("")),
   });
 
 export const updateBienSchema = createBienSchema.extend({
