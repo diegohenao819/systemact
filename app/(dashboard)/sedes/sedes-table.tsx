@@ -6,13 +6,16 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   flexRender,
   type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import {
   Table,
   TableBody,
@@ -35,7 +38,9 @@ interface Sede {
 const columns: ColumnDef<Sede>[] = [
   {
     accessorKey: "id_sede",
-    header: () => <span className="text-muted-foreground">#</span>,
+    header: ({ column }) => (
+      <SortableHeader column={column}>#</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className="text-muted-foreground text-sm">
         {row.getValue("id_sede")}
@@ -45,14 +50,18 @@ const columns: ColumnDef<Sede>[] = [
   },
   {
     accessorKey: "nombre_sede",
-    header: "Nombre de la Sede",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Nombre de la Sede</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className="font-medium">{row.getValue("nombre_sede")}</span>
     ),
   },
   {
     accessorKey: "abreviatura",
-    header: "Abreviatura",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Abreviatura</SortableHeader>
+    ),
     cell: ({ row }) => {
       const value = row.getValue("abreviatura") as string | null;
       return value ? (
@@ -67,7 +76,9 @@ const columns: ColumnDef<Sede>[] = [
   },
   {
     accessorKey: "ciudad",
-    header: "Ciudad",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Ciudad</SortableHeader>
+    ),
     cell: ({ row }) => {
       const value = row.getValue("ciudad") as string | null;
       return (
@@ -79,7 +90,9 @@ const columns: ColumnDef<Sede>[] = [
   },
   {
     accessorKey: "direccion",
-    header: "Dirección",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Dirección</SortableHeader>
+    ),
     cell: ({ row }) => {
       const value = row.getValue("direccion") as string | null;
       return (
@@ -93,7 +106,9 @@ const columns: ColumnDef<Sede>[] = [
   },
   {
     accessorKey: "created_at",
-    header: "Creación",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Creación</SortableHeader>
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
       return (
@@ -113,6 +128,7 @@ const columns: ColumnDef<Sede>[] = [
     header: "",
     cell: ({ row }) => <SedeDialog sede={row.original} />,
     size: 50,
+    enableSorting: false,
   },
 ];
 
@@ -122,6 +138,7 @@ interface SedesTableProps {
 
 export function SedesTable({ data }: SedesTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
     data,
@@ -129,8 +146,10 @@ export function SedesTable({ data }: SedesTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { globalFilter },
+    getSortedRowModel: getSortedRowModel(),
+    state: { globalFilter, sorting },
     onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
     initialState: {
       pagination: { pageSize: 10 },
     },

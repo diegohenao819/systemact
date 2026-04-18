@@ -13,10 +13,11 @@ import {
 } from "@tanstack/react-table";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Eye, ImageOff } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Eye, ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import {
   Table,
   TableBody,
@@ -99,7 +100,9 @@ const columns: ColumnDef<BienRow>[] = [
   },
   {
     accessorKey: "codigo_generado",
-    header: "Código",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Código</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className="font-mono text-sm font-semibold">
         {row.getValue("codigo_generado")}
@@ -110,15 +113,7 @@ const columns: ColumnDef<BienRow>[] = [
   {
     accessorKey: "nombre",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Nombre
-        <ArrowUpDown className="ml-2 h-3 w-3" />
-      </Button>
+      <SortableHeader column={column}>Nombre</SortableHeader>
     ),
     cell: ({ row }) => (
       <div>
@@ -133,7 +128,9 @@ const columns: ColumnDef<BienRow>[] = [
   },
   {
     id: "sede",
-    header: "Sede",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Sede</SortableHeader>
+    ),
     accessorFn: (row) => unwrap(row.sedes)?.nombre_sede ?? "",
     cell: ({ row }) => (
       <span className="text-sm">
@@ -143,7 +140,9 @@ const columns: ColumnDef<BienRow>[] = [
   },
   {
     id: "area",
-    header: "Área",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Área</SortableHeader>
+    ),
     accessorFn: (row) => unwrap(row.areas)?.nombre_area ?? "",
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
@@ -153,7 +152,9 @@ const columns: ColumnDef<BienRow>[] = [
   },
   {
     id: "responsable",
-    header: "Responsable",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Responsable</SortableHeader>
+    ),
     accessorFn: (row) => {
       const profile = unwrap(row.profiles);
       if (profile) return `${profile.nombre} ${profile.apellido}`;
@@ -182,7 +183,9 @@ const columns: ColumnDef<BienRow>[] = [
   },
   {
     accessorKey: "estado",
-    header: "Estado",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Estado</SortableHeader>
+    ),
     cell: ({ row }) => {
       const estado = row.getValue("estado") as string;
       return (
@@ -199,15 +202,7 @@ const columns: ColumnDef<BienRow>[] = [
   {
     accessorKey: "valor_total",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-3"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Valor Total
-        <ArrowUpDown className="ml-2 h-3 w-3" />
-      </Button>
+      <SortableHeader column={column}>Valor Total</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className="text-sm font-medium">

@@ -6,14 +6,17 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   flexRender,
   type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import {
   Table,
   TableBody,
@@ -60,7 +63,9 @@ function EstadoToggle({ area }: { area: Area }) {
 const columns: ColumnDef<Area>[] = [
   {
     accessorKey: "id_area",
-    header: () => <span className="text-muted-foreground">#</span>,
+    header: ({ column }) => (
+      <SortableHeader column={column}>#</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className="text-muted-foreground text-sm">
         {row.getValue("id_area")}
@@ -70,20 +75,26 @@ const columns: ColumnDef<Area>[] = [
   },
   {
     accessorKey: "nombre_area",
-    header: "Nombre del Área",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Nombre del Área</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className="font-medium">{row.getValue("nombre_area")}</span>
     ),
   },
   {
     accessorKey: "estado",
-    header: "Estado",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Estado</SortableHeader>
+    ),
     cell: ({ row }) => <EstadoToggle area={row.original} />,
     size: 100,
   },
   {
     accessorKey: "created_at",
-    header: "Fecha de Creación",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Fecha de Creación</SortableHeader>
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("created_at"));
       return (
@@ -102,6 +113,7 @@ const columns: ColumnDef<Area>[] = [
     header: "",
     cell: ({ row }) => <AreaDialog area={row.original} />,
     size: 50,
+    enableSorting: false,
   },
 ];
 
@@ -111,6 +123,7 @@ interface AreasTableProps {
 
 export function AreasTable({ data }: AreasTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
     data,
@@ -118,8 +131,10 @@ export function AreasTable({ data }: AreasTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { globalFilter },
+    getSortedRowModel: getSortedRowModel(),
+    state: { globalFilter, sorting },
     onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
     initialState: {
       pagination: { pageSize: 10 },
     },

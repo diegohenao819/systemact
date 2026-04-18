@@ -8,6 +8,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Suspense } from "react";
+import {
+  ActividadReciente,
+  ActividadRecienteLoading,
+} from "./actividad-reciente";
+import {
+  BienesPorSede,
+  BienesPorSedeLoading,
+} from "./bienes-por-sede";
 
 interface StatCard {
   label: string;
@@ -130,10 +138,14 @@ export default function InicioPage() {
         <StatsCards />
       </Suspense>
 
-      <div className="rounded-xl border bg-card p-8 text-center">
-        <p className="text-muted-foreground">
-          Aquí se mostrarán gráficos y actividad reciente en fases posteriores.
-        </p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Suspense fallback={<BienesPorSedeLoading />}>
+          <BienesPorSede />
+        </Suspense>
+
+        <Suspense fallback={<ActividadRecienteLoading />}>
+          <ActividadReciente />
+        </Suspense>
       </div>
     </div>
   );
