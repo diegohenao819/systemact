@@ -267,13 +267,40 @@ movimiento_bienes.id_bien → bienes.id_bien
 
 ### 5.2. Roles
 
-| Rol | Nivel | Puede crear | Puede editar | Puede dar baja | Puede transferir | Ve todo |
-|-----|-------|-------------|-------------|----------------|-------------------|---------|
-| ADMINISTRADOR | 3 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ESTANDAR | 2 | ✅ | ✅ (propios) | ❌ | ❌ | Solo su sede |
-| CONSULTOR | 1 | ❌ | ❌ | ❌ | ❌ | Solo sus bienes |
+| Rol             | Lectura          | Escritura inventario | Transferencias | Bajas | Catálogos (sedes/áreas) | Usuarios |
+|-----------------|------------------|----------------------|----------------|-------|-------------------------|----------|
+| `ADMINISTRADOR` | Todo             | ✓                    | ✓              | ✓     | ✓                       | ✓        |
+| `ESTANDAR`      | Todo             | ✓                    | ✓              | ✗     | ✗                       | ✗        |
+| `CONSULTOR`     | Todo (read-only) | ✗                    | ✗              | ✗     | ✗                       | ✗        |
 
-### 5.3. Middleware de protección
+El control de acceso se aplica en **tres capas coordinadas**:
+
+1. **RLS sobre cada tabla** — frontera de la BD. Las policies usan `get_my_rol()` (security definer) para evaluar el rol del caller.
+2. **RPCs `security invoker`** — `crear_bien_con_auditoria`, `actualizar_bien_con_auditoria`, `crear_transferencia` llaman `perform require_rol_escritura()` antes de tocar datos. Las RPCs de gestión de usuarios llaman `require_rol_admin()`.
+3. **Guards de página y server actions** en Next.js — `requireRol(roles)` en server components, validación `ctx.rol !== ROLES.ADMINISTRADOR` en server actions, renderizado condicional de botones por rol.
+
+### 5.3. Helper de guard en server components
+
+```typescript
+// app/(dashboard)/bajas/page.tsx
+import { requireRol, ADMIN_ONLY } from "@/lib/auth/require-rol";
+
+export default async function BajasPage() {
+  const ctx = await requireRol(ADMIN_ONLY);
+  // si el usuario no es ADMIN, requireRol ya hizo redirect("/inicio")
+  // ctx.rol, ctx.userId, ctx.email disponibles para server actions
+}
+```
+
+Para páginas que cualquiera puede ver pero condicionan UI por rol, usar `getAuthContext()` en lugar de `requireRol()`:
+
+```typescript
+const ctx = await getAuthContext();
+const canWrite = ctx.rol === ROLES.ADMINISTRADOR || ctx.rol === ROLES.ESTANDAR;
+return <>{canWrite && <Button>Nuevo</Button>}</>;
+```
+
+### 5.4. Middleware de protección
 
 ```typescript
 // middleware.ts — patrón de referencia
@@ -283,9 +310,25 @@ movimiento_bienes.id_bien → bienes.id_bien
 // Si hay sesión y está en /login → redirect a /inicio
 ```
 
-### 5.4. RLS obligatorio
+### 5.5. RLS obligatorio
 
 **Toda tabla debe tener RLS habilitado.** Nunca desactivar RLS ni usar `service_role` key en el cliente. El `service_role` solo se usa en Server Actions o Route Handlers cuando es estrictamente necesario.
+
+### 5.6. Bootstrap del primer admin
+
+`handle_new_user` (trigger en `auth.users`) crea perfiles con rol `CONSULTOR` por defecto. El primer admin se promueve manualmente:
+
+```sql
+update public.profiles
+set rol = 'ADMINISTRADOR'
+where id = (select id from auth.users where email = 'admin@dominio.com');
+```
+
+Después de eso, los demás usuarios se gestionan desde `/usuarios`.
+
+### 5.7. Protección de "último admin activo"
+
+`actualizar_rol_usuario` y `set_usuario_activo` validan en BD que la operación no deje el sistema sin admins activos. Esto previene que un único admin se quite el rol o se desactive accidentalmente y bloquee toda la administración del sistema.
 
 ---
 
@@ -364,6 +407,9 @@ Estas reglas deben respetarse siempre, independientemente del módulo:
 - No se puede transferir un bien a su **misma ubicación** (misma sede + misma área + mismo responsable)
 - Solo bienes en estado **ACTIVO** pueden transferirse
 - Al guardar una transferencia, se debe **actualizar el bien** (nueva sede, área, responsable) Y crear el registro en `movimiento_bienes` en la misma transacción
+- **Implementado vía RPC `crear_transferencia`** (`security invoker`, transaccional, con `select … for update` sobre el bien). El server action sólo valida entradas y llama al RPC; toda la lógica transaccional vive en PL/pgSQL
+- Los campos `area_origen` / `area_destino` de `transferencias` son `text` (snapshot del nombre del área), no FKs. El RPC los resuelve desde `areas.nombre_area` al momento de la transferencia para mantener historial legible aunque se renombre un área
+- El responsable destino acepta tres modos: UUID de `profiles`, texto libre (se guarda en `bienes.responsable_texto`), o sentinel `"Desconocido"`
 
 ### 7.3. Bajas
 
@@ -391,11 +437,15 @@ Cada vez que ocurre algo sobre un bien, se debe insertar un registro:
 
 ### Bucket: `bienes`
 
-- **Tipo**: Privado (requiere auth para acceder)
+- **Tipo**: Público (SELECT abierto, INSERT/UPDATE/DELETE sólo `authenticated`)
 - **Tamaño máximo**: 5 MB por archivo
 - **Tipos permitidos**: `image/jpeg`, `image/png`, `image/webp`
-- **Estructura de rutas**: `bienes/{id_bien}/{timestamp}_{filename}`
-- Para mostrar imágenes usar `supabase.storage.from('bienes').createSignedUrl(path, 3600)`
+- **Estructura de rutas**: archivo en raíz del bucket con nombre `{crypto.randomUUID()}.{ext}`
+- Para mostrar imágenes usar `supabase.storage.from('bienes').getPublicUrl(path)`
+- **La subida se hace desde el cliente**, no vía Server Action — así se evita el límite de 4.5 MB de los Server Actions en Vercel
+- Policies (ver migración `20260418200000_bienes_imagen_storage.sql`):
+  - `bienes_public_read` — SELECT para cualquiera
+  - `bienes_authenticated_insert` / `_update` / `_delete` — sólo autenticados
 
 ---
 
@@ -444,36 +494,47 @@ Crear un usuario con rol ADMINISTRADOR para el primer acceso.
 
 ## 11. Patrones de Referencia
 
-### 11.1. Server Action (mutación)
+### 11.1. Server Action (mutación vía RPC)
+
+**Preferencia**: toda mutación que toca más de una tabla o requiere transaccionalidad pasa por un RPC PL/pgSQL (`security invoker`, `set search_path = public`). El Server Action sólo valida entradas, resuelve el user, y llama al RPC. La lógica de negocio (locks, cascadas, auditoría) vive en la BD.
+
+RPCs actualmente en uso:
+- `crear_bien_con_auditoria` / `actualizar_bien_con_auditoria` — inserta/actualiza `bienes` + entrada en `movimiento_bienes`
+- `crear_transferencia` — bloquea bien, valida estado ACTIVO + destino distinto, actualiza bien, inserta transferencia + movimiento
 
 ```typescript
-// app/(dashboard)/bienes/nuevo/actions.ts
+// app/(dashboard)/transferencias/actions.ts
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
-import { createBienSchema } from "@/lib/validations/bien"
+import { createTransferenciaActionSchema } from "@/lib/validations/transferencia"
 
-export async function crearBien(formData: FormData) {
+export async function crearTransferencia(formData: FormData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "No autenticado" }
 
-  const raw = Object.fromEntries(formData)
-  const parsed = createBienSchema.safeParse(raw)
-  if (!parsed.success) return { success: false, error: "Datos inválidos" }
+  const parsed = createTransferenciaActionSchema.safeParse({
+    id_bien: formData.get("id_bien"),
+    sede_destino: formData.get("sede_destino"),
+    // ...
+  })
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message }
 
-  const { data, error } = await supabase
-    .from("bienes")
-    .insert({ ...parsed.data, id_responsable: user.id })
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc("crear_transferencia", {
+    p_id_bien: parsed.data.id_bien,
+    p_sede_destino: parsed.data.sede_destino,
+    // ...
+    p_usuario_registro: user.id,
+  })
 
-  if (error) return { success: false, error: "Error al guardar" }
+  if (error) return { success: false, error: error.message }
 
+  revalidatePath("/transferencias")
   revalidatePath("/bienes")
-  return { success: true, data }
+  return { success: true, id_transferencia: data as number }
 }
 ```
 
@@ -557,4 +618,4 @@ El sistema anterior fue construido en PHP nativo + MySQL + jQuery. Se puede cons
 
 ---
 
-*Última actualización: Marzo 2026*
+*Última actualización: Abril 2026*

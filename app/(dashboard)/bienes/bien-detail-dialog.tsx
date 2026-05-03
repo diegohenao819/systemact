@@ -45,6 +45,7 @@ interface BienDetailDialogProps {
   bien: BienDetalle | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canWrite?: boolean;
 }
 
 const formatCOP = (value: number) =>
@@ -87,6 +88,7 @@ export function BienDetailDialog({
   bien,
   open,
   onOpenChange,
+  canWrite = false,
 }: BienDetailDialogProps) {
   if (!bien) return null;
 
@@ -189,12 +191,14 @@ export function BienDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
-          <Button asChild>
-            <Link href={`/bienes/${bien.id_bien}`}>
-              <PenLine className="h-4 w-4 mr-2" />
-              Editar
-            </Link>
-          </Button>
+          {canWrite && (
+            <Button asChild>
+              <Link href={`/bienes/${bien.id_bien}`}>
+                <PenLine className="h-4 w-4 mr-2" />
+                Editar
+              </Link>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

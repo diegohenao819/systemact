@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { LayoutGrid } from "lucide-react";
 import { AreasTable } from "./areas-table";
 import { AreaDialog } from "./area-dialog";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
-async function AreasContent() {
+async function AreasContent({ canManage }: { canManage: boolean }) {
   const supabase = await createClient();
 
   const { data: areas, error } = await supabase
@@ -20,7 +22,7 @@ async function AreasContent() {
     );
   }
 
-  return <AreasTable data={areas ?? []} />;
+  return <AreasTable data={areas ?? []} canManage={canManage} />;
 }
 
 function AreasLoading() {
@@ -41,7 +43,10 @@ function AreasLoading() {
   );
 }
 
-export default function AreasPage() {
+export default async function AreasPage() {
+  const ctx = await getAuthContext();
+  const canManage = ctx.rol === ROLES.ADMINISTRADOR;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -57,12 +62,12 @@ export default function AreasPage() {
             </p>
           </div>
         </div>
-        <AreaDialog />
+        {canManage && <AreaDialog />}
       </div>
 
       {/* Table */}
       <Suspense fallback={<AreasLoading />}>
-        <AreasContent />
+        <AreasContent canManage={canManage} />
       </Suspense>
     </div>
   );

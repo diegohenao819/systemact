@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAreaSchema, updateAreaSchema } from "@/lib/validations/area";
 import { revalidatePath } from "next/cache";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
 interface ActionResult {
   success: boolean;
@@ -11,12 +13,12 @@ interface ActionResult {
 
 export async function crearArea(formData: FormData): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (ctx.rol !== ROLES.ADMINISTRADOR) {
+      return { success: false, error: "Solo administradores pueden gestionar áreas" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       nombre_area: formData.get("nombre_area"),
@@ -49,12 +51,12 @@ export async function actualizarArea(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (ctx.rol !== ROLES.ADMINISTRADOR) {
+      return { success: false, error: "Solo administradores pueden gestionar áreas" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       id_area: formData.get("id_area"),
@@ -94,12 +96,12 @@ export async function toggleEstadoArea(
   nuevoEstado: "ACTIVO" | "INACTIVO",
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (ctx.rol !== ROLES.ADMINISTRADOR) {
+      return { success: false, error: "Solo administradores pueden gestionar áreas" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const { error } = await supabase
       .from("areas")

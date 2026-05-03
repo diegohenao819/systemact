@@ -4,6 +4,121 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 
 ---
 
+## 2026-05-03 — Control de acceso por rol (RBAC) + módulo `/usuarios` + esquema reproducible
+
+### Funcionalidades
+
+#### 🔐 Modelo de tres roles aplicado de punta a punta
+
+Se materializó el modelo de roles que ya existía en el esquema (`profiles.rol`) pero estaba sin guards. Tres roles:
+
+| Rol             | Lectura | Escritura inventario | Transferencias | Bajas | Sedes/Áreas | Usuarios |
+|-----------------|---------|----------------------|----------------|-------|-------------|----------|
+| `ADMINISTRADOR` | Todo    | ✓                    | ✓              | ✓     | ✓           | ✓        |
+| `ESTANDAR`      | Todo    | ✓                    | ✓              | ✗     | ✗           | ✗        |
+| `CONSULTOR`     | Todo    | ✗                    | ✗              | ✗     | ✗           | ✗        |
+
+Tres capas de defensa coordinadas:
+1. **RLS** sobre cada tabla — frontera de la BD.
+2. **RPCs `security invoker`** que llaman `require_rol_escritura()` o `require_rol_admin()` antes de tocar datos.
+3. **Server actions** y **guards de página** (`requireRol`) en Next.js — defensa en profundidad y mejor UX.
+
+#### 👥 Módulo `/usuarios`
+
+- Página con tabla de todos los usuarios (nombre, email, cédula, sede, rol, estado, fecha de registro).
+- Búsqueda global, orden por columna, paginación de 15 filas (mismo patrón que las otras tablas).
+- Por fila, dropdown de acciones:
+  - **Cambiar rol**: selector de los 3 roles, marca el actual, deshabilita la opción ya seleccionada.
+  - **Activar / Desactivar**: bloqueado para uno mismo (no puedes desactivarte) y para el último admin activo del sistema (validado en BD).
+- Email viene de `auth.users` vía RPC `listar_usuarios_admin` (security definer + validación de admin al inicio + EXECUTE revocado de `public`/`anon`).
+
+#### 🎛️ UI condicional según rol
+
+- Sidebar: ítem "Usuarios" solo para ADMIN; "Bajas" solo para ADMIN. "Transferencias" y "Reportes" abiertos a los 3 roles (lectura).
+- En `/bienes`: botón "Nuevo Bien" oculto para CONSULTOR. Ícono de editar por fila también.
+- En `/transferencias`: botón "Nueva Transferencia" oculto para CONSULTOR.
+- En `/sedes` y `/areas`: botón de crear y dialog de editar ocultos para no-ADMIN. El toggle de estado de área se renderiza como badge plano (sin botón) para no-ADMIN.
+- Modal de detalle de bien: botón "Editar" oculto para CONSULTOR; "Cerrar" siempre visible.
+
+### Cambios en base de datos
+
+#### Helpers de rol
+- `current_user_rol() returns text` — invoker, lo usa el frontend.
+- `require_rol_escritura()` — lanza excepción si el caller no es ADMIN/ESTANDAR activo.
+- `require_rol_admin()` — lanza excepción si no es ADMIN activo.
+
+#### RPCs nuevos
+- `actualizar_rol_usuario(p_id uuid, p_nuevo_rol text)` — solo admin; protege que no quede el sistema sin admins activos.
+- `set_usuario_activo(p_id uuid, p_activo boolean)` — solo admin; misma protección de "último admin".
+- `listar_usuarios_admin()` — security definer (necesita `auth.users.email`); valida admin antes de devolver datos; EXECUTE revocado de `public`/`anon`.
+
+#### RPCs existentes con validación de rol
+`crear_bien_con_auditoria`, `actualizar_bien_con_auditoria` y `crear_transferencia` ahora hacen `perform require_rol_escritura()` antes de cualquier `insert`/`update`. Firmas idénticas — el frontend no cambia.
+
+#### RLS sobre `profiles`
+Se abre la lectura de `profiles` a usuarios autenticados (necesario para el módulo `/usuarios` y para resolver responsables en otras pantallas). Las escrituras siguen restringidas: cada usuario edita su propio perfil; cualquier perfil se edita siendo admin.
+
+#### Lectura de `bienes` abierta a CONSULTOR
+La policy original `bienes_select` filtraba CONSULTOR a "solo bienes donde es responsable" — eso bloqueaba el caso de uso "consultor ve el inventario completo en modo lectura", que es el que pide el plan original. Se simplifica a `using (true)` para todos los autenticados; las escrituras siguen restringidas por `bienes_update` y los RPCs.
+
+### 📦 Esquema reproducible (open source ready)
+
+Hasta ahora el esquema base (tablas, funciones base, triggers, RLS) había sido creado manualmente desde Supabase Studio — no existía un archivo SQL que cualquier persona pudiera correr para levantar el backend desde cero.
+
+#### Migración baseline
+- `supabase/migrations/00000000000000_initial_schema.sql` — **un solo archivo idempotente** que crea todo el esquema: 9 tablas con FKs y CHECKs, 14 funciones (helpers + RPCs), 25 políticas RLS, 1 bucket de Storage con 4 policies, 3 triggers (incluyendo `auth.users → profiles`).
+- Las 10 migraciones incrementales anteriores se mueven a `supabase/migrations/_archive/` con un README que explica qué hacía cada una. No se ejecutan en `supabase db reset` — su contenido ya está consolidado en el baseline.
+
+#### Datos de ejemplo
+- `supabase/seed.sql` — sedes (4), áreas (6) y características (9 tipos de bien con prefijos para códigos automáticos). Idempotente con `on conflict do nothing`. Se carga automáticamente con `supabase db reset` y manualmente con `psql -f` para proyectos en cloud.
+
+#### Bootstrap del primer admin
+`handle_new_user` ahora crea perfiles con rol `CONSULTOR` por defecto (antes era `ADMINISTRADOR`, lo cual era un agujero para un proyecto open source). El primer admin se promueve manualmente con un `update profiles set rol = 'ADMINISTRADOR'` después de registrarse desde la app — está documentado en `supabase/README.md`.
+
+#### Setup local
+- `supabase/config.toml` — configuración del Supabase CLI: puertos, schemas expuestos, auth, storage, seed paths.
+- `supabase/README.md` — instrucciones paso a paso para levantar el backend en local (Docker) o en cloud, crear el primer admin y hacer cambios al esquema.
+
+### Cambios en frontend
+
+| Archivo | Cambio |
+|---------|--------|
+| `lib/auth/require-rol.ts` | **Nuevo** — `getAuthContext()` y `requireRol(roles)` para server components; constantes `ADMIN_ONLY`, `WRITE_ROLES` |
+| `lib/constants.ts` | "Transferencias" y "Reportes" cambiados de `WRITE_ROLES` a `ALL_ROLES` para que CONSULTOR los vea en el sidebar |
+| `app/(dashboard)/usuarios/page.tsx` | **Reemplaza el stub** — guard ADMIN, llama a `listar_usuarios_admin` |
+| `app/(dashboard)/usuarios/usuarios-table.tsx` | **Nuevo** — tabla con dropdown de cambiar rol y activar/desactivar |
+| `app/(dashboard)/usuarios/actions.ts` | **Nuevo** — server actions `cambiarRolUsuario` y `toggleUsuarioActivo` |
+| `app/(dashboard)/bienes/page.tsx` | Lee rol, condiciona "Nuevo Bien", pasa `canWrite` a la tabla |
+| `app/(dashboard)/bienes/bienes-table.tsx` | Filtra columna "acciones" si no `canWrite`; pasa `canWrite` al modal de detalle |
+| `app/(dashboard)/bienes/bien-detail-dialog.tsx` | Botón "Editar" condicional |
+| `app/(dashboard)/bienes/nuevo/page.tsx` | Guard `requireRol(WRITE_ROLES)` |
+| `app/(dashboard)/bienes/[id]/page.tsx` | Guard `requireRol(WRITE_ROLES)` |
+| `app/(dashboard)/transferencias/page.tsx` | Botón "Nueva Transferencia" condicional |
+| `app/(dashboard)/transferencias/nueva/page.tsx` | Guard `requireRol(WRITE_ROLES)` |
+| `app/(dashboard)/sedes/page.tsx` | `SedeDialog` (botón crear) condicional |
+| `app/(dashboard)/sedes/sedes-table.tsx` | Filtra columna "acciones" si no `canManage` |
+| `app/(dashboard)/sedes/actions.ts` | Validación ADMIN al inicio de `crearSede` y `actualizarSede` |
+| `app/(dashboard)/areas/page.tsx` | `AreaDialog` (botón crear) condicional |
+| `app/(dashboard)/areas/areas-table.tsx` | `EstadoToggle` muestra solo badge si no `canManage`; columna "acciones" filtrada |
+| `app/(dashboard)/areas/actions.ts` | Validación ADMIN en `crearArea`, `actualizarArea`, `toggleEstadoArea` |
+
+### Observaciones técnicas
+
+#### Por qué tres capas de control
+RLS sola es suficiente para bloquear escrituras maliciosas pero deja al frontend con dos problemas:
+1. UX confusa — botones que existen pero al hacer click muestran "permiso denegado".
+2. Server actions que escriben directo (sin RPC) no pasan por `require_rol_*`, dependen solo de RLS.
+
+Por eso se añade validación en server actions (mensajes de error claros) y guards de página (no se renderizan controles que el rol no puede usar). Las tres capas se complementan: RLS protege, RPCs validan al ejecutar, frontend evita confusión.
+
+#### Última-admin-activo
+Tanto `actualizar_rol_usuario` como `set_usuario_activo` cuentan los admins activos restantes antes de aplicar el cambio. Si la operación dejaría el sistema sin ningún admin activo, se aborta con `raise exception`. Esto previene un escenario fácil de provocar accidentalmente: un solo admin se baja a sí mismo a CONSULTOR y queda imposible volver a promover a alguien.
+
+#### Bootstrap seguro por defecto
+`handle_new_user` quedó en `CONSULTOR` por default. La consecuencia: cualquier persona puede registrarse pero entra en modo lectura — no puede modificar inventario ni configuración. Un admin existente la promueve después.
+
+---
+
 ## 2026-04-18 — Módulo de transferencias
 
 ### Funcionalidades
@@ -219,15 +334,17 @@ El proyecto de Supabase se pausa automáticamente tras ~7 días sin actividad en
 - **Bienes** — CRUD + imagen + modal de detalle
 - **Sedes** — CRUD
 - **Áreas** — CRUD
+- **Transferencias** — registro de movimientos entre sedes/áreas/responsables con auditoría
 - **Panel de control** — KPIs + actividad reciente + gráfico por sede
+- **Usuarios** — gestión de roles, activación/desactivación, último-admin protegido
+- **Control de acceso por rol** — RLS + RPCs `require_rol_*` + guards de página + UI condicional
 
 ### Módulos pendientes (stubs "Módulo en construcción")
-- `/bajas` — dar de baja activos (tabla `bajas` ya definida en esquema)
-- `/transferencias` — mover activos entre sedes/áreas (tabla `transferencias` ya definida)
+- `/bajas` — dar de baja activos (tabla `bajas` ya definida en esquema, RPC pendiente)
 - `/historial` — visualizador del log `movimiento_bienes`
 - `/reportes` — analíticas por sede, área, tipo, costo
-- `/usuarios` — gestión de usuarios y roles (ADMINISTRADOR / ESTANDAR / CONSULTOR)
 
-### Otras brechas conocidas
-- Control de acceso por rol (RBAC) definido en AGENTS.md pero sin guards en las páginas.
-- Hooks personalizados de React Query (`use-bienes`, etc.) mencionados en AGENTS.md pero aún no creados.
+### Pendientes del plan original
+- **Categorías** — CRUD no implementado (semana 3-4 del plan).
+- **Filtros avanzados** en consultas (filtros por sede, área, estado, etc. — semana 7).
+- **Manuales** técnico y de usuario, presentación final (semana 12).

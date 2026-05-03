@@ -238,18 +238,23 @@ const columns: ColumnDef<BienRow>[] = [
 
 interface BienesTableProps {
   data: BienRow[];
+  canWrite?: boolean;
 }
 
-export function BienesTable({ data }: BienesTableProps) {
+export function BienesTable({ data, canWrite = false }: BienesTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [bienSeleccionado, setBienSeleccionado] = useState<BienRow | null>(
     null,
   );
 
+  const visibleColumns = canWrite
+    ? columns
+    : columns.filter((col) => col.id !== "acciones");
+
   const table = useReactTable({
     data,
-    columns,
+    columns: visibleColumns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -317,7 +322,7 @@ export function BienesTable({ data }: BienesTableProps) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={visibleColumns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No se encontraron bienes.
@@ -368,6 +373,7 @@ export function BienesTable({ data }: BienesTableProps) {
         onOpenChange={(open) => {
           if (!open) setBienSeleccionado(null);
         }}
+        canWrite={canWrite}
       />
     </div>
   );

@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createSedeSchema, updateSedeSchema } from "@/lib/validations/sede";
 import { revalidatePath } from "next/cache";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
 interface ActionResult {
   success: boolean;
@@ -11,12 +13,12 @@ interface ActionResult {
 
 export async function crearSede(formData: FormData): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (ctx.rol !== ROLES.ADMINISTRADOR) {
+      return { success: false, error: "Solo administradores pueden gestionar sedes" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       nombre_sede: formData.get("nombre_sede"),
@@ -51,12 +53,12 @@ export async function actualizarSede(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (ctx.rol !== ROLES.ADMINISTRADOR) {
+      return { success: false, error: "Solo administradores pueden gestionar sedes" };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       id_sede: formData.get("id_sede"),

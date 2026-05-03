@@ -1,19 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TransferenciaForm } from "../transferencia-form";
+import { requireRol, WRITE_ROLES } from "@/lib/auth/require-rol";
 
 async function NuevaTransferenciaContent({
   searchParams,
 }: {
   searchParams: Promise<{ bien?: string }>;
 }) {
+  await requireRol(WRITE_ROLES);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
 
   const params = await searchParams;
   const bienIdParam = params.bien ? Number(params.bien) : null;

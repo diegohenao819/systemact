@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { Building2 } from "lucide-react";
 import { SedesTable } from "./sedes-table";
 import { SedeDialog } from "./sede-dialog";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
-async function SedesContent() {
+async function SedesContent({ canManage }: { canManage: boolean }) {
   const supabase = await createClient();
 
   const { data: sedes, error } = await supabase
@@ -22,7 +24,7 @@ async function SedesContent() {
     );
   }
 
-  return <SedesTable data={sedes ?? []} />;
+  return <SedesTable data={sedes ?? []} canManage={canManage} />;
 }
 
 function SedesLoading() {
@@ -47,7 +49,10 @@ function SedesLoading() {
   );
 }
 
-export default function SedesPage() {
+export default async function SedesPage() {
+  const ctx = await getAuthContext();
+  const canManage = ctx.rol === ROLES.ADMINISTRADOR;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -63,12 +68,12 @@ export default function SedesPage() {
             </p>
           </div>
         </div>
-        <SedeDialog />
+        {canManage && <SedeDialog />}
       </div>
 
       {/* Table */}
       <Suspense fallback={<SedesLoading />}>
-        <SedesContent />
+        <SedesContent canManage={canManage} />
       </Suspense>
     </div>
   );

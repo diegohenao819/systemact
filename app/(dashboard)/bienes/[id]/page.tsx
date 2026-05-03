@@ -1,15 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BienForm } from "../bien-form";
+import { requireRol, WRITE_ROLES } from "@/lib/auth/require-rol";
 
 async function EditBienContent({ id }: { id: string }) {
+  await requireRol(WRITE_ROLES);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
 
   const [bienRes, sedesRes, areasRes, caractRes, perfilesRes] =
     await Promise.all([

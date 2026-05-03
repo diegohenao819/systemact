@@ -134,15 +134,20 @@ const columns: ColumnDef<Sede>[] = [
 
 interface SedesTableProps {
   data: Sede[];
+  canManage?: boolean;
 }
 
-export function SedesTable({ data }: SedesTableProps) {
+export function SedesTable({ data, canManage = false }: SedesTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  const visibleColumns = canManage
+    ? columns
+    : columns.filter((col) => col.id !== "acciones");
+
   const table = useReactTable({
     data,
-    columns,
+    columns: visibleColumns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -204,7 +209,7 @@ export function SedesTable({ data }: SedesTableProps) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={visibleColumns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No se encontraron sedes.

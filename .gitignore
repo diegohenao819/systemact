@@ -31,13 +31,19 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*.local
 .env
-.env.example
 .env*
+.env*.local
 .env.local
+# Sí queremos versionar .env.example (template para colaboradores)
+!.env.example
 # vercel
 .vercel
+
+# Local MCP configuration (Claude Code, etc.) — referencias a proyectos Supabase
+# personales del desarrollador, no debe ir al repo público
+.mcp.json
+.claude/settings.local.json
 
 # typescript
 *.tsbuildinfo

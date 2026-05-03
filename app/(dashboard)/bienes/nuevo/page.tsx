@@ -1,15 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BienForm } from "../bien-form";
+import { requireRol, WRITE_ROLES } from "@/lib/auth/require-rol";
 
 async function NuevoBienContent() {
+  await requireRol(WRITE_ROLES);
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
 
   // Cargar datos para los dropdowns en paralelo
   const [sedesRes, areasRes, caractRes, perfilesRes] = await Promise.all([

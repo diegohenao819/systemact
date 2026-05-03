@@ -4,8 +4,10 @@ import { Package, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { BienesTable } from "./bienes-table";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
-async function BienesContent() {
+async function BienesContent({ canWrite }: { canWrite: boolean }) {
   const supabase = await createClient();
 
   const { data: bienes, error } = await supabase
@@ -42,7 +44,7 @@ async function BienesContent() {
     );
   }
 
-  return <BienesTable data={bienes ?? []} />;
+  return <BienesTable data={bienes ?? []} canWrite={canWrite} />;
 }
 
 function BienesLoading() {
@@ -68,7 +70,11 @@ function BienesLoading() {
   );
 }
 
-export default function BienesPage() {
+export default async function BienesPage() {
+  const ctx = await getAuthContext();
+  const canWrite =
+    ctx.rol === ROLES.ADMINISTRADOR || ctx.rol === ROLES.ESTANDAR;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -83,16 +89,18 @@ export default function BienesPage() {
             </p>
           </div>
         </div>
-        <Button asChild>
-          <Link href="/bienes/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Bien
-          </Link>
-        </Button>
+        {canWrite && (
+          <Button asChild>
+            <Link href="/bienes/nuevo">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Bien
+            </Link>
+          </Button>
+        )}
       </div>
 
       <Suspense fallback={<BienesLoading />}>
-        <BienesContent />
+        <BienesContent canWrite={canWrite} />
       </Suspense>
     </div>
   );

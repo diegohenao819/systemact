@@ -97,7 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Transferencias",
         href: "/transferencias",
         icon: ArrowLeftRight,
-        roles: WRITE_ROLES,
+        roles: ALL_ROLES,
       },
       {
         label: "Bajas",
@@ -126,7 +126,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Reportes",
         href: "/reportes",
         icon: BarChart3,
-        roles: WRITE_ROLES,
+        roles: ALL_ROLES,
       },
     ],
   },

@@ -35,8 +35,22 @@ interface Area {
   created_at: string;
 }
 
-function EstadoToggle({ area }: { area: Area }) {
+function EstadoToggle({
+  area,
+  canManage,
+}: {
+  area: Area;
+  canManage: boolean;
+}) {
   const [loading, setLoading] = useState(false);
+
+  if (!canManage) {
+    return (
+      <Badge variant={area.estado === "ACTIVO" ? "default" : "secondary"}>
+        {area.estado}
+      </Badge>
+    );
+  }
 
   const handleToggle = async () => {
     setLoading(true);
@@ -60,7 +74,7 @@ function EstadoToggle({ area }: { area: Area }) {
   );
 }
 
-const columns: ColumnDef<Area>[] = [
+const buildColumns = (canManage: boolean): ColumnDef<Area>[] => [
   {
     accessorKey: "id_area",
     header: ({ column }) => (
@@ -87,7 +101,9 @@ const columns: ColumnDef<Area>[] = [
     header: ({ column }) => (
       <SortableHeader column={column}>Estado</SortableHeader>
     ),
-    cell: ({ row }) => <EstadoToggle area={row.original} />,
+    cell: ({ row }) => (
+      <EstadoToggle area={row.original} canManage={canManage} />
+    ),
     size: 100,
   },
   {
@@ -108,22 +124,29 @@ const columns: ColumnDef<Area>[] = [
       );
     },
   },
-  {
-    id: "acciones",
-    header: "",
-    cell: ({ row }) => <AreaDialog area={row.original} />,
-    size: 50,
-    enableSorting: false,
-  },
+  ...(canManage
+    ? [
+        {
+          id: "acciones",
+          header: "",
+          cell: ({ row }) => <AreaDialog area={row.original} />,
+          size: 50,
+          enableSorting: false,
+        } as ColumnDef<Area>,
+      ]
+    : []),
 ];
 
 interface AreasTableProps {
   data: Area[];
+  canManage?: boolean;
 }
 
-export function AreasTable({ data }: AreasTableProps) {
+export function AreasTable({ data, canManage = false }: AreasTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  const columns = buildColumns(canManage);
 
   const table = useReactTable({
     data,
