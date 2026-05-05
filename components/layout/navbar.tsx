@@ -36,7 +36,7 @@ export function Navbar({ nombre, apellido, rol, email }: NavbarProps) {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/auth/login");
+    router.push("/");
   };
 
   const initials = `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
