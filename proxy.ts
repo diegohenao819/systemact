@@ -11,9 +11,10 @@ export const config = {
      * Match all request paths except:
      * - _next/* (static files, image optimization, HMR and internals)
      * - favicon.ico, robots.txt, sitemap.xml (public metadata files)
+     * - google*.html (Google Search Console verification files)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/|favicon.ico|robots.txt|sitemap.xml|google.*\\.html$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
