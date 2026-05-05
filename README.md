@@ -4,9 +4,14 @@ Sistema de gestión de inventario de activos físicos para [Conviventia](https:/
 
 ## Características
 
-- **Inventario** completo con fotos, códigos automáticos por tipo y valoración.
+- **Inventario** completo con fotos, códigos automáticos por tipo, valoración en COP y filtros por sede / área / tipo / estado.
+- **Categorías** (tipos de bien) con prefijos personalizables para los códigos automáticos.
 - **Transferencias** entre sedes, áreas y responsables con auditoría transaccional.
+- **Bajas** con confirmación doble, motivos tipificados y trazabilidad completa.
+- **Reportes** de inventario por persona y trazabilidad por bien (timeline cronológico).
+- **Exportación a Excel** desde reportes, listado de bienes e historial — con formato de moneda COP, auto-filtros y panel congelado.
 - **Roles de tres niveles** (`ADMINISTRADOR`, `ESTANDAR`, `CONSULTOR`) aplicados en RLS, RPCs y guards de página.
+- **Portada pública minimalista** con acceso a login y registro.
 - **Panel de control** con timeline de actividad reciente y gráficos por sede.
 - **Auditoría** automática de todas las operaciones sobre cada bien (registro, modificación, transferencia, baja).
 
@@ -20,11 +25,16 @@ cd systemact
 cp .env.example .env.local
 ```
 
-Edita `.env.local` con las credenciales de tu proyecto Supabase:
+Edita `.env.local` con las credenciales de tu proyecto Supabase. Este archivo es local y no se versiona:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://<tu-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<tu-publishable-key>
+
+# Opcional: usuario real para pruebas E2E autenticadas.
+# No commitear credenciales reales.
+E2E_USER_EMAIL=usuario@dominio.com
+E2E_USER_PASSWORD=contraseña
 ```
 
 Encuentras estos valores en [tu proyecto Supabase → Settings → API](https://supabase.com/dashboard/project/_?showConnect=true).
@@ -72,21 +82,25 @@ Por defecto, los usuarios nuevos quedan en rol `CONSULTOR` (modo lectura). Para 
 
 ## Stack
 
-- **Framework**: Next.js 15 (App Router, Server Components, Server Actions).
+- **Framework**: Next.js 15 (App Router, Server Components, Server Actions, Route Handlers).
 - **Base de datos**: Supabase (Postgres + Auth + Storage + RLS).
 - **UI**: Tailwind CSS + shadcn/ui + lucide-react + recharts.
 - **Validación**: Zod en cliente y server.
 - **Tablas**: TanStack Table v8.
+- **Exportación**: ExcelJS para reportes en `.xlsx`.
+- **Pruebas**: Vitest para unitarias y Playwright para E2E.
 
 ## Estructura del repo
 
 ```
 systemact/
-├── app/(dashboard)/          # Rutas autenticadas (bienes, sedes, áreas, transferencias, usuarios, etc.)
+├── app/(dashboard)/          # Rutas autenticadas (bienes, sedes, áreas, categorías, transferencias, bajas, reportes, historial, usuarios)
+├── app/api/export/           # Route Handlers que devuelven .xlsx (bienes, inventario-persona, historial)
 ├── app/auth/                 # Login, registro, recuperación de contraseña
 ├── components/               # ui/, layout/, formularios reutilizables
 ├── lib/
 │   ├── auth/require-rol.ts   # Guards de rol para server components
+│   ├── export/excel.ts       # Helpers de ExcelJS (estilos, headers HTTP)
 │   ├── supabase/             # Clients (server, client, proxy)
 │   └── validations/          # Esquemas Zod
 ├── supabase/
@@ -97,6 +111,24 @@ systemact/
 ├── documentation/CHANGELOG.md
 └── AGENTS.md                 # Guía detallada para colaboradores y agentes
 ```
+
+## Pruebas
+
+```bash
+npm run lint       # ESLint
+npm run build      # build + TypeScript
+npm run test:unit  # Vitest: validaciones y helpers
+npm run test:e2e   # Playwright: flujos funcionales base
+```
+
+Los E2E autenticados leen automáticamente estas variables desde `.env.local`:
+
+```bash
+E2E_USER_EMAIL=usuario@dominio.com
+E2E_USER_PASSWORD=contraseña
+```
+
+Sin credenciales, Playwright omite los flujos autenticados y solo valida que las rutas protegidas y las descargas Excel redirijan al login. `.env.local` está ignorado por Git; no subir correos, contraseñas ni claves reales a GitHub.
 
 ## Documentación
 

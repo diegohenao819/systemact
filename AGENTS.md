@@ -43,7 +43,7 @@ Deploy:      Vercel (frontend) + Supabase Cloud (backend)
 
 - **No hay React Query / TanStack Query** — todas las lecturas son Server Components, no hace falta cliente de cache.
 - **No hay Zustand ni otro store global** — el estado de UI vive en `useState` local; el estado del servidor lo maneja Next.js con cache + `revalidatePath`.
-- **No hay API Routes (`app/api/`)** — todas las mutaciones son Server Actions.
+- **No hay API Routes para mutaciones** — todas las mutaciones son Server Actions. La excepción actual es `app/api/export/*`, usado como Route Handlers de solo lectura para descargar archivos `.xlsx`.
 
 ---
 
@@ -67,15 +67,18 @@ systemact/
 │   │   ├── sedes/               # CRUD inline con dialog (admin only para escribir)
 │   │   ├── areas/               # CRUD inline (admin only)
 │   │   ├── usuarios/            # Gestión de roles + activar/desactivar (ADMIN)
+│   │   ├── categorias/          # CRUD de tipos de bien/prefijos (admin only para escribir)
 │   │   ├── transferencias/
 │   │   │   ├── page.tsx
 │   │   │   ├── nueva/page.tsx
 │   │   │   └── ...
-│   │   ├── bajas/               # Stub (pendiente — semana 8-9 del plan)
-│   │   ├── historial/           # Stub (pendiente)
-│   │   └── reportes/            # Stub (pendiente — semana 10)
+│   │   ├── bajas/               # Bajas con confirmación doble (ADMIN)
+│   │   ├── historial/           # Timeline por bien + exportación a Excel
+│   │   └── reportes/            # Inventario por persona + exportación a Excel
+│   ├── api/
+│   │   └── export/              # Route Handlers de descarga .xlsx (bienes, reportes, historial)
 │   ├── layout.tsx
-│   └── page.tsx                 # Redirect a /inicio o /auth/login
+│   └── page.tsx                 # Portada pública con login/sign-up
 ├── components/
 │   ├── ui/                      # shadcn/ui (no editar manualmente)
 │   ├── layout/                  # Sidebar, Navbar, MobileSidebar
@@ -83,6 +86,8 @@ systemact/
 ├── lib/
 │   ├── auth/
 │   │   └── require-rol.ts       # getAuthContext() y requireRol() para guards
+│   ├── export/
+│   │   └── excel.ts             # Helpers ExcelJS: estilos, formato COP, headers de descarga
 │   ├── supabase/
 │   │   ├── client.ts            # createBrowserClient (componentes cliente)
 │   │   ├── server.ts            # createServerClient (server components / actions)
@@ -91,6 +96,8 @@ systemact/
 │   │   ├── bien.ts
 │   │   ├── sede.ts
 │   │   ├── area.ts
+│   │   ├── baja.ts
+│   │   ├── categoria.ts
 │   │   └── transferencia.ts
 │   ├── constants.ts             # ROLES, ESTADOS_BIEN, MOTIVOS_BAJA, NAV_GROUPS
 │   └── utils.ts                 # cn() y helpers genéricos
@@ -370,11 +377,17 @@ Cada vez que ocurre algo sobre un bien, se inserta un registro:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+
+# Opcional para Playwright E2E autenticado.
+# Usar solo en .env.local o variables del entorno de CI, nunca en archivos versionados.
+E2E_USER_EMAIL=<test-user-email>
+E2E_USER_PASSWORD=<test-user-password>
 ```
 
 Hay un template en `.env.example` que sí se versiona.
 
 - Las variables `NEXT_PUBLIC_*` son accesibles en el cliente.
+- Las variables `E2E_*` son solo para el runner de Playwright; `playwright.config.ts` carga `.env.local` con `@next/env`.
 - **No usar `SUPABASE_SERVICE_ROLE_KEY`** a menos que sea estrictamente necesario. Si se llega a necesitar, va solo en variables de entorno del servidor (Vercel) y nunca prefijada con `NEXT_PUBLIC_`.
 
 ---
@@ -487,7 +500,7 @@ export type CreateBienInput = z.infer<typeof createBienSchema>;
 - ❌ No usar `supabase.auth.admin` ni `service_role` en componentes cliente.
 - ❌ No eliminar registros físicamente (usar Soft Delete cambiando estado).
 - ❌ No hardcodear strings de roles. Usar constantes de `lib/constants.ts` (`ROLES.ADMINISTRADOR`, etc.).
-- ❌ No crear API Routes (`app/api/`) cuando un Server Action es suficiente.
+- ❌ No crear API Routes (`app/api/`) para mutaciones cuando un Server Action es suficiente. Para descargas de archivos, seguir el patrón existente de Route Handlers en `app/api/export/*`.
 - ❌ No instalar librerías de UI adicionales. Usar shadcn/ui + Tailwind.
 - ❌ No hacer fetch de datos en `useEffect`. Usar Server Components.
 - ❌ No instalar React Query / Zustand sin justificación clara — el proyecto no los necesita hoy.
@@ -501,10 +514,10 @@ export type CreateBienInput = z.infer<typeof createBienSchema>;
 ## 13. Estado del Proyecto
 
 ### Completado
-- Auth (login, registro, recuperación), bienes (CRUD + imágenes + modal + **filtros por sede/área/tipo/estado**), sedes, áreas, **categorías (CRUD)**, transferencias, bajas (RPC + confirmación doble + historial), reportes (inventario por persona), historial (timeline por bien), panel de control con timeline + chart, usuarios con gestión de roles, RBAC en RLS + RPCs + guards de página + UI condicional, esquema reproducible (baseline + seed + config + README).
+- Auth (login, registro, recuperación), bienes (CRUD + imágenes + modal + filtros por sede/área/tipo/estado), sedes, áreas, categorías (CRUD), transferencias, bajas (RPC + confirmación doble + historial), reportes (inventario por persona), historial (timeline por bien), **exportación a Excel desde /bienes, /reportes y /historial**, panel de control con timeline + chart, usuarios con gestión de roles, RBAC en RLS + RPCs + guards de página + UI condicional, esquema reproducible (baseline + seed + config + README), suite base de pruebas automatizadas (Vitest + Playwright).
 
 ### Pendiente del plan original (UTP)
-- **Pruebas funcionales y ajustes de usabilidad** (semana 11) — validación con usuarios reales (Kevin, equipo de Conviventia).
+- **Validación funcional con usuarios reales y ajustes de usabilidad** (semana 11) — ejecutar checklist con Kevin/equipo de Conviventia y registrar hallazgos.
 - **Manuales** técnico y de usuario, presentación final (semana 12).
 
 ---

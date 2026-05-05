@@ -4,6 +4,167 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 
 ---
 
+## 2026-05-05 — Portada pública minimalista
+
+### Funcionalidad
+
+- Se reemplaza la raíz vacía por una portada pública en `/`.
+- Incluye logo de Conviventia, nombre SYSTEMACT, botones **Iniciar sesión** y **Registrarse**.
+- El diseño es sobrio y minimalista: fondo blanco, tipografía limpia, acciones claras y una fila discreta con módulos clave (Bienes, Transferencias, Reportes).
+- `/` queda como ruta pública; las rutas protegidas siguen redirigiendo a `/auth/login` cuando no hay sesión.
+
+### Cambios técnicos
+
+| Archivo | Cambio |
+|---------|--------|
+| `app/page.tsx` | Nueva portada pública |
+| `lib/supabase/proxy.ts` | `/` deja de redirigir automáticamente |
+| `proxy.ts` | El matcher excluye todo `/_next/*` para no interferir con assets, HMR e internals de Next |
+| `components/login-form.tsx` | El botón de login espera hidratación para evitar submit HTML nativo en E2E |
+| `tests/e2e/auth.spec.ts` | Smoke test de la portada pública |
+| `tests/e2e/authenticated.spec.ts` | Flujos autenticados serializados con espera de hidratación |
+| `eslint.config.mjs` | Ignora reportes generados por Playwright |
+
+### Verificación
+
+- ✅ `npm run lint`
+- ✅ `npm run build`
+- ✅ `npm run test:unit`
+- ✅ `npm run test:e2e` — 5 tests pasan
+
+---
+
+## 2026-05-05 — Suite base de pruebas automatizadas (semana 11)
+
+### Funcionalidades
+
+- Se añade **Vitest** para pruebas unitarias de reglas pequeñas pero críticas:
+  - Validaciones Zod de bienes, transferencias, bajas y categorías.
+  - Helpers de Excel (`createWorkbook`, `styleHeader`, `workbookToBuffer`, `xlsxResponseHeaders`, `timestampSuffix`, `unwrap`).
+- Se añade **Playwright** para pruebas E2E:
+  - Redirección de rutas protegidas al login cuando no hay sesión.
+  - Protección de descargas Excel sin sesión.
+  - Flujos autenticados opcionales con `E2E_USER_EMAIL` y `E2E_USER_PASSWORD` leídos desde `.env.local` o variables de entorno:
+    - Navegación principal visible.
+    - Descarga del inventario general en Excel.
+
+### Scripts añadidos
+
+| Script | Propósito |
+|--------|-----------|
+| `npm run test` | Vitest en modo watch |
+| `npm run test:unit` | Unitarias en modo CI |
+| `npm run test:e2e` | Playwright headless |
+| `npm run test:e2e:ui` | Playwright UI |
+| `npm run check` | `lint` + `build` + `test:unit` |
+
+### Cambios añadidos
+
+| Archivo | Cambio |
+|---------|--------|
+| `vitest.config.ts` | Config de Vitest con alias `@/*` |
+| `playwright.config.ts` | Config E2E con web server local en `127.0.0.1:3000` y carga de `.env.local` |
+| `tests/unit/validations.test.ts` | Pruebas de validaciones de negocio |
+| `tests/unit/excel.test.ts` | Pruebas de helpers de Excel |
+| `tests/e2e/auth.spec.ts` | Smoke tests sin sesión |
+| `tests/e2e/authenticated.spec.ts` | Flujos autenticados opcionales |
+
+### Verificación
+
+- ✅ `npm run lint`
+- ✅ `npm run build`
+- ✅ `npm run test:unit` — 11 tests pasan
+- ✅ `npm run test:e2e` — 4 tests pasan con credenciales E2E locales en `.env.local`
+
+### Seguridad de credenciales E2E
+
+Las variables `E2E_USER_EMAIL` y `E2E_USER_PASSWORD` no se versionan. Deben vivir en `.env.local` o en secretos del entorno de CI. El archivo `.env.local` está ignorado por Git.
+
+### Pendiente de semana 11
+
+La suite automatizada cubre una base técnica inicial. Sigue pendiente la **validación funcional con usuarios reales** y registro de resultados/ajustes de usabilidad con el equipo de Conviventia.
+
+---
+
+## 2026-05-04 — Exportación a Excel (cierre del entregable de Reportes)
+
+### Funcionalidades
+
+#### 📥 Exportación a Excel desde 3 puntos del sistema
+
+- **`/reportes`** — botón "Exportar a Excel" cuando hay persona seleccionada. Descarga `inventario-<apellido>-<nombre>-<timestamp>.xlsx` con encabezado de la persona (cédula, cargo, sede, área, fecha) + tabla de bienes asignados con totales.
+- **`/bienes`** — botón "Exportar" en el header. Descarga `bienes-<timestamp>.xlsx` con todos los bienes del inventario operativo (excluye `DE BAJA`). Incluye auto-filtros y panel congelado en el header para navegación rápida.
+- **`/historial`** — botón "Exportar a Excel" cuando hay bien seleccionado. Descarga `historial-<código>-<timestamp>.xlsx` con **3 hojas**:
+  1. **Información del bien** (campos en formato vertical).
+  2. **Baja** (solo si el bien fue dado de baja — motivo, fecha, descripción, autor).
+  3. **Movimientos** (timeline cronológico con auto-filtros).
+
+### Diseño técnico
+
+#### Library: `exceljs`
+
+Se eligió [`exceljs`](https://github.com/exceljs/exceljs) sobre `xlsx` (SheetJS) por soporte nativo de:
+- **Formato de moneda colombiana** (`"$"#,##0;[Red]-"$"#,##0`) sin decimales.
+- **Estilos por celda**: encabezados con fondo `slate-200`, totales con fondo `slate-100`, bordes inferiores.
+- **Auto-filtros y freeze panes** para tablas grandes (`/bienes` con 500+ filas sigue siendo navegable).
+- **Múltiples hojas por workbook** (necesario para el historial: info + baja + movimientos en un solo archivo).
+
+#### Route Handlers en lugar de Server Actions
+
+Las descargas se hacen con **Route Handlers** (`app/api/export/*/route.ts`), no con Server Actions, por dos razones:
+
+1. **UX directa**: el botón es un `<a href="/api/export/...">` que el navegador maneja como descarga nativa (con barra de progreso, ubicación elegida por el usuario, etc.). Sin Server Action, sin estado de loading, sin Blob/base64 intermedio.
+2. **Sin límite de payload**: Server Actions en Vercel tienen límite de 4.5 MB. Aunque hoy los exports son pequeños (~50 KB), un export de inventario completo de Conviventia podría crecer.
+
+Cada handler:
+- Valida sesión con `supabase.auth.getUser()` (RLS se aplica naturalmente).
+- Lee parámetros de query (`?persona=<uuid>`, `?bien=<id>`).
+- Ejecuta queries con joins para resolver nombres de sede, área, responsable, tipo.
+- Construye el workbook con el helper `lib/export/excel.ts`.
+- Devuelve el buffer con `Content-Disposition: attachment; filename="..."`.
+
+#### Helper compartido `lib/export/excel.ts`
+
+Centraliza:
+- `createWorkbook()` — instancia con metadata del proyecto.
+- `HEADER_STYLE` y `TOTAL_STYLE` — estilos reutilizables.
+- `COP_FORMAT` — formato de moneda colombiana.
+- `xlsxResponseHeaders(filename)` — headers HTTP correctos con sanitización ASCII del nombre.
+- `timestampSuffix()` — sufijo `yyyymmdd-hhmm` para nombres de archivo únicos.
+- `unwrap<T>()` — helper para relaciones FK de Supabase (objeto vs array).
+
+### Cambios añadidos
+
+| Archivo | Cambio |
+|---------|--------|
+| `package.json` | Añade dependencia `exceljs` |
+| `lib/export/excel.ts` | **Nuevo** — helpers de estilo, headers HTTP, timestamps |
+| `app/api/export/inventario-persona/route.ts` | **Nuevo** — Excel del reporte por persona |
+| `app/api/export/bienes/route.ts` | **Nuevo** — Excel del listado completo de bienes |
+| `app/api/export/historial/route.ts` | **Nuevo** — Excel con 3 hojas (info + baja + movimientos) |
+| `app/(dashboard)/reportes/page.tsx` | Añade botón "Exportar a Excel" cuando hay persona seleccionada |
+| `app/(dashboard)/bienes/page.tsx` | Añade botón "Exportar" en el header |
+| `app/(dashboard)/historial/page.tsx` | Añade botón "Exportar a Excel" cuando hay bien seleccionado |
+
+### Sin cambios en BD
+
+Toda la lógica vive en código TypeScript del lado del servidor. Ninguna migración.
+
+### Cierre completo del cronograma 1-10
+
+Con esto los entregables 1-10 del plan original están **totalmente cubiertos**:
+- ✅ Reportes con exportación a Excel (semana 10).
+- ✅ Filtros avanzados (semana 7).
+- ✅ Categorías (semana 3-4).
+- ✅ Bajas (semana 8-9).
+- ✅ Transferencias (semana 8-9).
+- ✅ Bienes (semana 5-6).
+- ✅ Roles y RBAC (semana 3-4).
+
+El siguiente bloque es **semana 11 — Pruebas funcionales y ajustes de usabilidad** (validación con usuarios reales) y **semana 12 — Documentación y cierre** (manual técnico, manual de usuario, presentación final).
+
+---
+
 ## 2026-05-04 — Filtros avanzados + módulo de Categorías (cierre de deudas semanas 3-4 y 7)
 
 ### Funcionalidades
@@ -555,8 +716,11 @@ El proyecto de Supabase se pausa automáticamente tras ~7 días sin actividad en
 - **Áreas** — CRUD
 - **Transferencias** — registro de movimientos entre sedes/áreas/responsables con auditoría
 - **Bajas** — RPC `crear_baja` + form con confirmación doble + historial con badges por motivo
-- **Reportes** — inventario por persona con totales y soporte de impresión
-- **Historial** — timeline de movimientos por bien con info actual + alerta de baja
+- **Reportes** — inventario por persona con totales, soporte de impresión y **exportación a Excel**
+- **Historial** — timeline de movimientos por bien + alerta de baja + **exportación a Excel (3 hojas)**
+- **Categorías** — CRUD de tipos de bien con prefijos para códigos automáticos
+- **Filtros avanzados** en `/bienes` — sede, área, tipo, estado, combinables con la búsqueda global
+- **Exportación a Excel** desde `/bienes`, `/reportes` y `/historial` (formato COP, auto-filtros, freeze panes)
 - **Panel de control** — KPIs + actividad reciente + gráfico por sede
 - **Usuarios** — gestión de roles, activación/desactivación, último-admin protegido
 - **Control de acceso por rol** — RLS + RPCs `require_rol_*` + guards de página + UI condicional
