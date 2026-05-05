@@ -20,6 +20,7 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 - Se añade `robots.txt` y `sitemap.xml`.
 - Se marca `noindex, nofollow` para rutas de autenticación y panel interno.
 - El proxy excluye `robots.txt` y `sitemap.xml` para que sean públicos y no redirijan al login.
+- Se corrige la URL canónica para Open Graph/Twitter: `NEXT_PUBLIC_SITE_URL` tiene prioridad sobre `VERCEL_URL`, evitando que Facebook tome imágenes desde deployments preview protegidos.
 
 ### Verificación
 

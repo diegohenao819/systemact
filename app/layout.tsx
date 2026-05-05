@@ -5,11 +5,14 @@ import { Suspense } from "react";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
-
-const siteUrl = defaultUrl.replace(/\/+$/, "");
+const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000")
+).replace(/\/+$/, "");
 const siteName = "SYSTEMACT";
 const siteDescription =
   "Sistema interno de inventario para Conviventia: gestión de bienes, transferencias, bajas, reportes e historial.";
