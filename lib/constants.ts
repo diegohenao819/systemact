@@ -8,6 +8,7 @@ import {
   PackageMinus,
   History,
   BarChart3,
+  Tag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,7 +53,6 @@ export interface NavGroup {
 }
 
 const ALL_ROLES: Rol[] = [ROLES.ADMINISTRADOR, ROLES.ESTANDAR, ROLES.CONSULTOR];
-const WRITE_ROLES: Rol[] = [ROLES.ADMINISTRADOR, ROLES.ESTANDAR];
 const ADMIN_ONLY: Rol[] = [ROLES.ADMINISTRADOR];
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -86,6 +86,12 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Áreas",
         href: "/areas",
         icon: LayoutGrid,
+        roles: ALL_ROLES,
+      },
+      {
+        label: "Categorías",
+        href: "/categorias",
+        icon: Tag,
         roles: ALL_ROLES,
       },
     ],

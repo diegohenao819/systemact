@@ -6,7 +6,7 @@
 
 ## 1. Visión General del Proyecto
 
-**SYSTEMACT** es un sistema de gestión de inventario de recursos físicos para la organización **Conviventia** (ONG colombiana). Se está migrando desde un sistema legacy en PHP/MySQL hacia un stack moderno.
+**SYSTEMACT** es un sistema de gestión de inventario de recursos físicos para la organización **Conviventia** (ONG colombiana). Migración desde un sistema legacy en PHP/MySQL hacia un stack moderno.
 
 | Aspecto | Detalle |
 |---------|---------|
@@ -21,25 +21,29 @@
 ## 2. Stack Tecnológico
 
 ```
-Frontend:    Next.js 14+ (App Router) + TypeScript strict
-Estilos:     TailwindCSS + shadcn/ui
+Frontend:    Next.js 15 (App Router) + React 19 + TypeScript strict
+Estilos:     TailwindCSS + shadcn/ui + lucide-react
 Formularios: React Hook Form + Zod
-Tablas:      TanStack Table (React Table v8)
-Estado:      Zustand (global ligero) + React Query / TanStack Query (server state)
+Tablas:      TanStack Table v8
+Gráficos:    Recharts
 Toasts:      Sonner
 Backend:     Supabase (BaaS)
-BD:          PostgreSQL (via Supabase)
-Auth:        Supabase Auth (email/password + JWT)
+BD:          PostgreSQL 15 (vía Supabase)
+Auth:        Supabase Auth (email/password + JWT en cookies HTTP-only)
 Storage:     Supabase Storage (imágenes de bienes)
 Deploy:      Vercel (frontend) + Supabase Cloud (backend)
 ```
 
 ### Versiones Mínimas
 
-- Node.js >= 18
-- Next.js >= 14.0
+- Node.js >= 20
 - TypeScript >= 5.0
-- React >= 18.2
+
+### Lo que NO se usa (aunque se considere "obvio")
+
+- **No hay React Query / TanStack Query** — todas las lecturas son Server Components, no hace falta cliente de cache.
+- **No hay Zustand ni otro store global** — el estado de UI vive en `useState` local; el estado del servidor lo maneja Next.js con cache + `revalidatePath`.
+- **No hay API Routes (`app/api/`)** — todas las mutaciones son Server Actions.
 
 ---
 
@@ -48,211 +52,127 @@ Deploy:      Vercel (frontend) + Supabase Cloud (backend)
 ```
 systemact/
 ├── app/
-│   ├── (auth)/                  # Grupo de rutas públicas (login, recuperar contraseña)
-│   │   ├── login/page.tsx
-│   │   └── recuperar/page.tsx
+│   ├── auth/                    # Rutas públicas (login, sign-up, recuperación)
 │   ├── (dashboard)/             # Grupo de rutas protegidas (requiere sesión)
-│   │   ├── layout.tsx           # Layout con sidebar + navbar
-│   │   ├── inicio/page.tsx      # Dashboard principal con KPIs
+│   │   ├── layout.tsx           # Sidebar + navbar; carga el rol del usuario
+│   │   ├── inicio/              # Dashboard con KPIs, timeline, chart por sede
 │   │   ├── bienes/
 │   │   │   ├── page.tsx         # Listado con TanStack Table
-│   │   │   ├── nuevo/page.tsx   # Formulario de creación
-│   │   │   └── [id]/page.tsx    # Detalle / edición de un bien
-│   │   ├── sedes/
-│   │   ├── areas/
-│   │   ├── usuarios/
+│   │   │   ├── nuevo/page.tsx   # Form de creación (guard WRITE_ROLES)
+│   │   │   ├── [id]/page.tsx    # Form de edición  (guard WRITE_ROLES)
+│   │   │   ├── bienes-table.tsx
+│   │   │   ├── bien-form.tsx
+│   │   │   ├── bien-detail-dialog.tsx
+│   │   │   └── actions.ts       # Server actions: crearBien, actualizarBien
+│   │   ├── sedes/               # CRUD inline con dialog (admin only para escribir)
+│   │   ├── areas/               # CRUD inline (admin only)
+│   │   ├── usuarios/            # Gestión de roles + activar/desactivar (ADMIN)
 │   │   ├── transferencias/
-│   │   │   ├── page.tsx         # Listado de transferencias
-│   │   │   └── nueva/page.tsx   # Formulario nueva transferencia
-│   │   ├── bajas/
 │   │   │   ├── page.tsx
-│   │   │   └── nueva/page.tsx
-│   │   ├── historial/page.tsx   # Log de movimientos
-│   │   └── reportes/
-│   │       ├── page.tsx         # Menú de reportes
-│   │       └── [tipo]/page.tsx  # Reporte específico
-│   ├── layout.tsx               # Root layout
-│   └── page.tsx                 # Redirect a /login o /inicio
+│   │   │   ├── nueva/page.tsx
+│   │   │   └── ...
+│   │   ├── bajas/               # Stub (pendiente — semana 8-9 del plan)
+│   │   ├── historial/           # Stub (pendiente)
+│   │   └── reportes/            # Stub (pendiente — semana 10)
+│   ├── layout.tsx
+│   └── page.tsx                 # Redirect a /inicio o /auth/login
 ├── components/
-│   ├── ui/                      # Componentes shadcn/ui (no editar manualmente)
-│   ├── forms/                   # Componentes de formulario reutilizables
-│   ├── tables/                  # Columnas y configuraciones de TanStack Table
-│   ├── layout/                  # Sidebar, Navbar, Breadcrumbs
-│   └── shared/                  # Componentes compartidos (modals, confirmations, etc.)
+│   ├── ui/                      # shadcn/ui (no editar manualmente)
+│   ├── layout/                  # Sidebar, Navbar, MobileSidebar
+│   └── *-form.tsx               # Componentes de auth (login, sign-up, etc.)
 ├── lib/
+│   ├── auth/
+│   │   └── require-rol.ts       # getAuthContext() y requireRol() para guards
 │   ├── supabase/
-│   │   ├── client.ts            # createBrowserClient
-│   │   ├── server.ts            # createServerClient
-│   │   ├── middleware.ts        # Auth middleware helper
-│   │   └── admin.ts             # Service role client (solo server-side)
-│   ├── validations/             # Schemas Zod por entidad
+│   │   ├── client.ts            # createBrowserClient (componentes cliente)
+│   │   ├── server.ts            # createServerClient (server components / actions)
+│   │   └── proxy.ts             # Helper para el middleware (refresh de sesión)
+│   ├── validations/             # Esquemas Zod por entidad
 │   │   ├── bien.ts
 │   │   ├── sede.ts
 │   │   ├── area.ts
-│   │   ├── transferencia.ts
-│   │   ├── baja.ts
-│   │   └── usuario.ts
-│   ├── utils.ts                 # Helpers genéricos (formatCurrency, formatDate, etc.)
-│   └── constants.ts             # Enums, opciones de select, configuración
-├── hooks/                       # Custom hooks
-│   ├── use-bienes.ts
-│   ├── use-sedes.ts
-│   └── use-auth.ts
-├── stores/                      # Zustand stores
-│   └── auth-store.ts
+│   │   └── transferencia.ts
+│   ├── constants.ts             # ROLES, ESTADOS_BIEN, MOTIVOS_BAJA, NAV_GROUPS
+│   └── utils.ts                 # cn() y helpers genéricos
 ├── types/
-│   ├── database.types.ts        # Tipos auto-generados por Supabase CLI
-│   └── index.ts                 # Tipos de dominio adicionales
+│   └── index.ts                 # Tipos de dominio compartidos
 ├── supabase/
-│   ├── migrations/              # Migraciones SQL (supabase db diff)
-│   ├── seed.sql                 # Datos iniciales (áreas, sedes, usuario admin)
-│   └── config.toml
-├── middleware.ts                 # Next.js middleware (protección de rutas)
-├── AGENTS.md                    # Este archivo
-└── .env.local                   # Variables de entorno (NO commitear)
+│   ├── migrations/
+│   │   ├── 00000000000000_initial_schema.sql   # Baseline completo
+│   │   └── _archive/                           # Historial (no se ejecuta)
+│   ├── seed.sql                 # Sedes, áreas, tipos de bien
+│   ├── config.toml              # Config del Supabase CLI
+│   └── README.md                # Setup detallado de la BD
+├── middleware.ts                # Refresca sesión en cada request
+├── documentation/
+│   └── CHANGELOG.md
+├── README.md
+├── AGENTS.md
+└── .env.example                 # Template (.env.local va al gitignore)
 ```
 
 ---
 
 ## 4. Esquema de Base de Datos (PostgreSQL / Supabase)
 
-### 4.1. Tabla `profiles` (extiende auth.users)
+> ⚠️ Toda la verdad del esquema vive en `supabase/migrations/00000000000000_initial_schema.sql`. Este resumen es para orientación rápida.
+
+### 4.1. `profiles` (extiende `auth.users`)
 
 ```sql
-CREATE TABLE public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  nombre TEXT NOT NULL,
-  apellido TEXT NOT NULL,
-  cedula TEXT UNIQUE NOT NULL,
-  cargo TEXT,
-  rol TEXT NOT NULL CHECK (rol IN ('ADMINISTRADOR', 'ESTANDAR', 'CONSULTOR')) DEFAULT 'CONSULTOR',
-  id_sede INTEGER REFERENCES public.sedes(id_sede),
-  area TEXT,
-  activo BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+create table public.profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  nombre      text not null default '',
+  apellido    text not null default '',
+  cedula      text unique,                      -- nullable
+  cargo       text,
+  rol         text not null default 'CONSULTOR'
+              check (rol in ('ADMINISTRADOR', 'ESTANDAR', 'CONSULTOR')),
+  id_sede     integer references public.sedes(id_sede),
+  area        text,
+  activo      boolean default true,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
 );
 ```
 
-### 4.2. Tabla `sedes`
+`handle_new_user` (trigger en `auth.users`) crea el perfil automáticamente con rol `CONSULTOR`.
 
-```sql
-CREATE TABLE public.sedes (
-  id_sede SERIAL PRIMARY KEY,
-  nombre_sede TEXT NOT NULL UNIQUE,
-  abreviatura TEXT,
-  ciudad TEXT,
-  direccion TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+### 4.2. `sedes`, `areas`, `caracteristicas`
 
-### 4.3. Tabla `areas`
+Catálogos. `caracteristicas.codigo` es el prefijo para los códigos automáticos de bien (`COMP`, `PORT`, etc.).
 
-```sql
-CREATE TABLE public.areas (
-  id_area SERIAL PRIMARY KEY,
-  nombre_area TEXT NOT NULL UNIQUE,
-  estado TEXT CHECK (estado IN ('ACTIVO', 'INACTIVO')) DEFAULT 'ACTIVO',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+### 4.3. `bienes` (entidad principal)
 
-### 4.4. Tabla `caracteristicas` (catálogo de tipos de bienes)
+- `codigo_generado` se genera vía `generar_codigo_bien(prefijo)` con formato `PREFIJO-AÑO-CORRELATIVO` (ej: `COMP-2026-001`).
+- `valor_total` es columna **GENERATED** (`cantidad * valor_unitario`) — nunca se envía desde el cliente.
+- `estado` ∈ `{'ACTIVO', 'INACTIVO', 'DE BAJA'}`.
+- `responsable_texto` se usa cuando el responsable no está en `profiles`.
+- `imagen_url` apunta al bucket `bienes` de Storage.
 
-```sql
-CREATE TABLE public.caracteristicas (
-  id_caracteristica SERIAL PRIMARY KEY,
-  codigo TEXT NOT NULL UNIQUE,
-  descripcion TEXT NOT NULL,
-  imagen_url TEXT,
-  observaciones TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+### 4.4. `transferencias`, `bajas`, `movimiento_bienes`
 
-### 4.5. Tabla `bienes` (entidad principal)
+- **`transferencias`**: snapshot del cambio de ubicación. `area_origen` / `area_destino` son `text` (no FK) para mantener historial legible.
+- **`bajas`**: registro irreversible. `motivo` con CHECK constraint a la lista de tipos (DAÑO IRREPARABLE, OBSOLESCENCIA, etc.).
+- **`movimiento_bienes`**: log de auditoría con `tipo_movimiento` ∈ `{'REGISTRO', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION'}`. Lo escriben los RPCs, no se inserta directo desde la app.
 
-```sql
-CREATE TABLE public.bienes (
-  id_bien SERIAL PRIMARY KEY,
-  codigo_generado TEXT NOT NULL UNIQUE,      -- Ej: "COMP-2024-001"
-  nombre TEXT NOT NULL,
-  id_caracteristica INTEGER REFERENCES public.caracteristicas(id_caracteristica),
-  id_responsable UUID REFERENCES public.profiles(id),
-  responsable_texto TEXT,                    -- Responsable manual si no existe en profiles
-  id_sede INTEGER NOT NULL REFERENCES public.sedes(id_sede),
-  id_area INTEGER REFERENCES public.areas(id_area),
-  serial TEXT,
-  placa TEXT UNIQUE,
-  cantidad INTEGER NOT NULL DEFAULT 1 CHECK (cantidad > 0),
-  valor_unitario NUMERIC(15,2) NOT NULL DEFAULT 0,
-  valor_total NUMERIC(15,2) GENERATED ALWAYS AS (cantidad * valor_unitario) STORED,
-  estado TEXT NOT NULL CHECK (estado IN ('ACTIVO', 'INACTIVO', 'DE BAJA')) DEFAULT 'ACTIVO',
-  imagen_url TEXT,                           -- URL de Supabase Storage
-  observaciones TEXT,
-  fecha_registro TIMESTAMPTZ DEFAULT now(),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
+### 4.5. Funciones / RPCs
 
-### 4.6. Tabla `transferencias`
-
-```sql
-CREATE TABLE public.transferencias (
-  id_transferencia SERIAL PRIMARY KEY,
-  id_bien INTEGER NOT NULL REFERENCES public.bienes(id_bien),
-  sede_origen INTEGER NOT NULL REFERENCES public.sedes(id_sede),
-  sede_destino INTEGER NOT NULL REFERENCES public.sedes(id_sede),
-  area_origen TEXT,
-  area_destino TEXT,
-  responsable_origen UUID REFERENCES public.profiles(id),
-  responsable_destino UUID REFERENCES public.profiles(id),
-  motivo TEXT NOT NULL,
-  usuario_registro UUID NOT NULL REFERENCES public.profiles(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 4.7. Tabla `bajas`
-
-```sql
-CREATE TABLE public.bajas (
-  id_baja SERIAL PRIMARY KEY,
-  id_bien INTEGER NOT NULL REFERENCES public.bienes(id_bien),
-  motivo TEXT NOT NULL CHECK (motivo IN ('DAÑO IRREPARABLE', 'OBSOLESCENCIA', 'ROBO', 'PERDIDA', 'DONACION', 'VENTA', 'OTRO')),
-  descripcion TEXT,
-  usuario_registro UUID NOT NULL REFERENCES public.profiles(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 4.8. Tabla `movimiento_bienes` (audit log)
-
-```sql
-CREATE TABLE public.movimiento_bienes (
-  id_movimiento SERIAL PRIMARY KEY,
-  id_bien INTEGER NOT NULL REFERENCES public.bienes(id_bien),
-  tipo_movimiento TEXT NOT NULL CHECK (tipo_movimiento IN ('REGISTRO', 'TRANSFERENCIA', 'BAJA', 'MODIFICACION')),
-  detalle TEXT,
-  usuario_responsable UUID NOT NULL REFERENCES public.profiles(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 4.9. Relaciones clave
-
-```
-profiles.id_sede → sedes.id_sede
-bienes.id_sede → sedes.id_sede
-bienes.id_area → areas.id_area
-bienes.id_responsable → profiles.id
-bienes.id_caracteristica → caracteristicas.id_caracteristica
-transferencias.id_bien → bienes.id_bien
-bajas.id_bien → bienes.id_bien
-movimiento_bienes.id_bien → bienes.id_bien
-```
+| Función | Tipo | Caller | Propósito |
+|---------|------|--------|-----------|
+| `handle_updated_at` | trigger | Postgres | Actualiza `updated_at` en `bienes` y `profiles` |
+| `handle_new_user` | trigger en `auth.users` | Postgres | Crea `profiles` row al registrarse un usuario |
+| `generar_codigo_bien` | helper | RPCs internos | Calcula correlativo para un prefijo |
+| `get_my_rol` / `get_my_sede` | helper (security definer) | RLS policies | Evita recursividad al consultar el rol |
+| `current_user_rol` | helper (security invoker) | Frontend | Lo llama el cliente para conocer su rol |
+| `require_rol_escritura` | guard | RPCs | `raise exception` si no es ADMIN/ESTANDAR activo |
+| `require_rol_admin` | guard | RPCs | `raise exception` si no es ADMIN activo |
+| `crear_bien_con_auditoria` | RPC | Server action | Crea bien + log; valida rol escritura |
+| `actualizar_bien_con_auditoria` | RPC | Server action | Modifica bien + log |
+| `crear_transferencia` | RPC | Server action | Cambio de ubicación atómico (lock + log) |
+| `actualizar_rol_usuario` | RPC | Server action | Solo ADMIN. Protege "último admin activo" |
+| `set_usuario_activo` | RPC | Server action | Solo ADMIN. Protege "último admin activo" |
+| `listar_usuarios_admin` | RPC (security definer) | Server component | Lista usuarios con email de `auth.users`. EXECUTE revocado de `public`/`anon` |
 
 ---
 
@@ -260,10 +180,10 @@ movimiento_bienes.id_bien → bienes.id_bien
 
 ### 5.1. Flujo de Auth
 
-1. Login con email/password via `supabase.auth.signInWithPassword()`
-2. Supabase devuelve JWT con `user.id`
-3. El middleware de Next.js verifica la sesión en cada request a rutas `(dashboard)`
-4. El rol se obtiene de `profiles.rol` asociado al `user.id`
+1. Login con email/password vía `supabase.auth.signInWithPassword()`.
+2. Supabase devuelve JWT y lo guarda en cookies HTTP-only (manejado por `@supabase/ssr`).
+3. El middleware (`middleware.ts` en raíz, helper en `lib/supabase/proxy.ts`) refresca la sesión en cada request.
+4. El rol se obtiene de `profiles.rol` asociado al `user.id` cuando se necesita (typically en el layout del dashboard o en `getAuthContext`).
 
 ### 5.2. Roles
 
@@ -302,17 +222,11 @@ return <>{canWrite && <Button>Nuevo</Button>}</>;
 
 ### 5.4. Middleware de protección
 
-```typescript
-// middleware.ts — patrón de referencia
-// Rutas públicas: /login, /recuperar
-// Todo lo demás requiere sesión activa
-// Si no hay sesión → redirect a /login
-// Si hay sesión y está en /login → redirect a /inicio
-```
+`middleware.ts` (raíz) usa `lib/supabase/proxy.ts` para refrescar la sesión en cada request a rutas no públicas. Las rutas en `app/auth/*` son públicas; el resto exige sesión activa. Si no hay sesión, las páginas dentro de `(dashboard)` redirigen a `/auth/login` desde su propio loader.
 
 ### 5.5. RLS obligatorio
 
-**Toda tabla debe tener RLS habilitado.** Nunca desactivar RLS ni usar `service_role` key en el cliente. El `service_role` solo se usa en Server Actions o Route Handlers cuando es estrictamente necesario.
+**Toda tabla en `public` tiene RLS habilitado.** Nunca desactivar RLS ni usar `service_role` key en el cliente. La `service_role` solo se usa en Server Actions o Route Handlers cuando es estrictamente necesario — actualmente el proyecto no la usa.
 
 ### 5.6. Bootstrap del primer admin
 
@@ -336,10 +250,10 @@ Después de eso, los demás usuarios se gestionan desde `/usuarios`.
 
 ### 6.1. TypeScript
 
-- **Strict mode** siempre habilitado
-- Nunca usar `any`. Preferir `unknown` si el tipo no se conoce
-- Interfaces para objetos de dominio, types para unions/aliases
-- Usar los tipos auto-generados de Supabase: `Database['public']['Tables']['bienes']['Row']`
+- **Strict mode** siempre habilitado.
+- Nunca usar `any`. Preferir `unknown` si el tipo no se conoce.
+- Interfaces para objetos de dominio, types para unions/aliases.
+- Si en el futuro se generan tipos con `supabase gen types typescript`, el archivo va a `types/database.types.ts`. Hoy no existen — se tipan a mano cuando hace falta.
 
 ### 6.2. Nombres
 
@@ -357,79 +271,79 @@ Después de eso, los demás usuarios se gestionan desde `/usuarios`.
 
 ### 6.3. Componentes
 
-- Usar **Server Components** por defecto. Agregar `"use client"` solo cuando sea necesario (interactividad, hooks de estado, event handlers)
-- Un componente por archivo
-- Props tipadas siempre con interface
-- No usar `export default`. Usar named exports: `export function BienCard()`
+- Usar **Server Components** por defecto. Agregar `"use client"` solo cuando sea necesario (interactividad, hooks de estado, event handlers).
+- Un componente por archivo.
+- Props tipadas siempre con interface.
+- Usar named exports: `export function BienCard()`. Solo se usa `export default` cuando lo exige Next.js (page, layout).
 
 ### 6.4. Data Fetching
 
-- **Server Components**: Fetch data directamente con el Supabase server client
-- **Client Components**: Usar React Query / TanStack Query con hooks custom
-- **Mutaciones**: Usar Server Actions (`"use server"`) para todas las escrituras a BD
-- Nunca exponer lógica de Supabase directamente en componentes. Encapsular en funciones en `lib/` o `hooks/`
+- **Server Components**: fetch directamente con el Supabase server client (`lib/supabase/server`). Es el patrón usado en todo el proyecto.
+- **Mutaciones**: Server Actions (`"use server"`) que llaman RPCs.
+- **No usar React Query** — el proyecto no lo necesita. Si en el futuro un componente cliente necesita reaccionar a cambios sin recargar la página, evaluar Supabase Realtime antes de añadir una capa de cache cliente.
+- Encapsular queries complejas en funciones de `lib/`. Componentes de página solo hacen el fetch top-level y pasan datos a hijos.
 
 ### 6.5. Formularios
 
 ```typescript
-// Patrón estándar para formularios
+// Patrón estándar
 // 1. Schema Zod en lib/validations/[entidad].ts
-// 2. React Hook Form con zodResolver
-// 3. Server Action para procesar el submit
-// 4. Revalidar datos con revalidatePath() tras mutación exitosa
+// 2. React Hook Form con zodResolver en el componente cliente
+// 3. Server Action con validación Zod del FormData (defensa en profundidad)
+// 4. revalidatePath() tras mutación exitosa
+// 5. toast con Sonner para feedback al usuario
 ```
 
 ### 6.6. Manejo de Errores
 
-- Siempre usar try/catch en Server Actions
-- Retornar objetos `{ success: boolean, error?: string, data?: T }`
-- Mostrar errores al usuario con Sonner toast
-- Nunca exponer mensajes internos de Supabase al usuario final
-- Loggear errores en consola del servidor
+- Siempre usar try/catch en Server Actions.
+- Retornar objetos `{ success: boolean, error?: string, data?: T }`.
+- Mostrar errores al usuario con Sonner toast.
+- Nunca exponer mensajes internos de Supabase al usuario final.
+- Loggear errores en consola del servidor.
 
 ---
 
 ## 7. Reglas de Negocio Críticas
 
-Estas reglas deben respetarse siempre, independientemente del módulo:
+Estas reglas deben respetarse siempre, independientemente del módulo.
 
 ### 7.1. Bienes
 
-- El **código** se genera automáticamente: `{PREFIJO}-{AÑO}-{CORRELATIVO_3_DIGITOS}` (ej: `COMP-2026-001`)
-- El **valor_total** es calculado (cantidad × valor_unitario). En PostgreSQL es columna GENERATED. En el frontend se muestra en tiempo real pero no se envía al servidor
-- La **placa** es única cuando se proporciona. Puede ser nula
-- El **responsable** puede seleccionarse desde `profiles`, escribirse manualmente en `responsable_texto` o dejarse vacío
-- Un bien **nunca se elimina** físicamente. Se cambia su estado a `DE BAJA` (Soft Delete)
-- Las **imágenes** se suben a Supabase Storage en el bucket `bienes` con ruta: `bienes/{id_bien}/{filename}`
+- El **código** se genera automáticamente: `{PREFIJO}-{AÑO}-{CORRELATIVO_3_DIGITOS}` (ej: `COMP-2026-001`). La función `generar_codigo_bien(prefijo)` en BD lo calcula.
+- El **valor_total** es columna `GENERATED` en Postgres. En el frontend se muestra en tiempo real para feedback, pero no se envía al servidor.
+- La **placa** es única cuando se proporciona. Puede ser nula.
+- El **responsable** puede ser un UUID de `profiles`, texto libre en `responsable_texto`, o nulo.
+- Un bien **nunca se elimina** físicamente. Se cambia su estado a `DE BAJA` (Soft Delete).
+- Las **imágenes** se suben directo del cliente al bucket `bienes` con nombre `{crypto.randomUUID()}.{ext}` (evita el límite de 4.5 MB de Server Actions en Vercel).
 
 ### 7.2. Transferencias
 
-- No se puede transferir un bien a su **misma ubicación** (misma sede + misma área + mismo responsable)
-- Solo bienes en estado **ACTIVO** pueden transferirse
-- Al guardar una transferencia, se debe **actualizar el bien** (nueva sede, área, responsable) Y crear el registro en `movimiento_bienes` en la misma transacción
-- **Implementado vía RPC `crear_transferencia`** (`security invoker`, transaccional, con `select … for update` sobre el bien). El server action sólo valida entradas y llama al RPC; toda la lógica transaccional vive en PL/pgSQL
-- Los campos `area_origen` / `area_destino` de `transferencias` son `text` (snapshot del nombre del área), no FKs. El RPC los resuelve desde `areas.nombre_area` al momento de la transferencia para mantener historial legible aunque se renombre un área
-- El responsable destino acepta tres modos: UUID de `profiles`, texto libre (se guarda en `bienes.responsable_texto`), o sentinel `"Desconocido"`
+- No se puede transferir un bien a su **misma ubicación** (misma sede + misma área + mismo responsable).
+- Solo bienes en estado **ACTIVO** pueden transferirse.
+- Toda la lógica vive en el RPC `crear_transferencia` (`security invoker`, transaccional con `select … for update`). El server action sólo valida entradas y llama al RPC.
+- Los campos `area_origen` / `area_destino` son `text` (snapshot del nombre del área), no FKs. El RPC los resuelve desde `areas.nombre_area` para mantener historial legible aunque se renombre un área.
+- El responsable destino acepta tres modos: UUID de `profiles`, texto libre (se guarda en `bienes.responsable_texto`), o sentinel `"Desconocido"`.
 
 ### 7.3. Bajas
 
-- Solo bienes en estado **ACTIVO** pueden darse de baja
-- Al confirmar la baja: cambiar estado del bien a `DE BAJA` + insertar en tabla `bajas` + insertar en `movimiento_bienes`. Todo en una transacción
-- Los usuarios ESTANDAR necesitan **confirmación adicional** (modal de confirmación con motivo obligatorio)
-- Solo ADMINISTRADOR puede ejecutar bajas
+- Solo bienes en estado **ACTIVO** pueden darse de baja.
+- Solo `ADMINISTRADOR` puede ejecutar bajas.
+- Al confirmar la baja: cambiar estado del bien a `DE BAJA` + insertar en `bajas` + insertar en `movimiento_bienes`. **Todo en una transacción** (futuro RPC `crear_baja`).
+- Por su carácter irreversible, el formulario debe tener confirmación adicional (modal con mensaje explícito antes de submit).
 
-### 7.4. Auditoría (movimiento_bienes)
+### 7.4. Auditoría (`movimiento_bienes`)
 
-Cada vez que ocurre algo sobre un bien, se debe insertar un registro:
+Cada vez que ocurre algo sobre un bien, se inserta un registro:
 
-| Acción | tipo_movimiento | Detalle sugerido |
-|--------|----------------|------------------|
-| Se crea un bien | `REGISTRO` | "Bien registrado: {nombre}" |
-| Se transfiere | `TRANSFERENCIA` | "Transferido de {sede_origen} a {sede_destino}" |
-| Se da de baja | `BAJA` | "Baja por: {motivo}" |
-| Se edita info | `MODIFICACION` | "Campos modificados: {lista}" |
+| Acción | tipo_movimiento | Detalle (formato sugerido) |
+|--------|----------------|----------------------------|
+| Se crea un bien | `REGISTRO` | `Bien registrado: {nombre} ({codigo})` |
+| Se transfiere | `TRANSFERENCIA` | `Transferencia de {codigo}: {area_origen} → {sede_destino} / {area_destino}` |
+| Se da de baja | `BAJA` | `Baja por: {motivo}` |
+| Se edita info | `MODIFICACION` | `Bien modificado: {nombre}` |
 
-> **Preferencia**: Implementar con **Database Triggers** en PostgreSQL cuando sea posible, en lugar de hacerlo manualmente en el código de la app.
+> **Patrón actual**: la auditoría se hace dentro de cada RPC (`crear_bien_con_auditoria`, etc.) con un `insert into movimiento_bienes` explícito. No se usan triggers porque queremos control sobre el formato del `detalle` (que mezcla campos resueltos como nombres de áreas/sedes).
 
 ---
 
@@ -437,58 +351,43 @@ Cada vez que ocurre algo sobre un bien, se debe insertar un registro:
 
 ### Bucket: `bienes`
 
-- **Tipo**: Público (SELECT abierto, INSERT/UPDATE/DELETE sólo `authenticated`)
-- **Tamaño máximo**: 5 MB por archivo
-- **Tipos permitidos**: `image/jpeg`, `image/png`, `image/webp`
-- **Estructura de rutas**: archivo en raíz del bucket con nombre `{crypto.randomUUID()}.{ext}`
-- Para mostrar imágenes usar `supabase.storage.from('bienes').getPublicUrl(path)`
-- **La subida se hace desde el cliente**, no vía Server Action — así se evita el límite de 4.5 MB de los Server Actions en Vercel
-- Policies (ver migración `20260418200000_bienes_imagen_storage.sql`):
+- **Tipo**: público (SELECT abierto, INSERT/UPDATE/DELETE solo `authenticated`).
+- **Tamaño máximo**: 5 MB por archivo.
+- **Tipos permitidos**: `image/jpeg`, `image/png`, `image/webp`.
+- **Estructura de rutas**: archivo en raíz del bucket con nombre `{crypto.randomUUID()}.{ext}`.
+- Para mostrar imágenes usar `supabase.storage.from('bienes').getPublicUrl(path)`.
+- **La subida se hace desde el cliente**, no vía Server Action (evita el límite de 4.5 MB de Server Actions en Vercel).
+- Policies (definidas en `supabase/migrations/00000000000000_initial_schema.sql`):
   - `bienes_public_read` — SELECT para cualquiera
-  - `bienes_authenticated_insert` / `_update` / `_delete` — sólo autenticados
+  - `bienes_authenticated_insert` / `_update` / `_delete` — solo autenticados
 
 ---
 
 ## 9. Variables de Entorno
 
+`.env.local` (NUNCA commitear, ya está en `.gitignore`):
+
 ```env
-# .env.local (NUNCA commitear)
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOi...
-NEXT_PUBLIC_SITE_URL=https://systemact.vercel.app  # Base URL pública para links de auth
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...   # Solo server-side, NUNCA en cliente
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-- Las variables `NEXT_PUBLIC_*` son accesibles en el cliente
-- `SUPABASE_SERVICE_ROLE_KEY` solo se usa en Server Actions / Route Handlers para operaciones admin
+Hay un template en `.env.example` que sí se versiona.
+
+- Las variables `NEXT_PUBLIC_*` son accesibles en el cliente.
+- **No usar `SUPABASE_SERVICE_ROLE_KEY`** a menos que sea estrictamente necesario. Si se llega a necesitar, va solo en variables de entorno del servidor (Vercel) y nunca prefijada con `NEXT_PUBLIC_`.
 
 ---
 
 ## 10. Datos Iniciales (Seed)
 
-El archivo `supabase/seed.sql` debe poblar:
+`supabase/seed.sql` carga:
 
-### Sedes
+- **4 sedes** de ejemplo (Bogotá, Medellín, Cali, Barranquilla) — ajustar antes del primer `db reset` si Conviventia tiene otras.
+- **6 áreas** organizacionales (GAF, Focos, Tecnología, Talento Humano, Comunicaciones, Dirección).
+- **9 tipos de bien** con prefijos para los códigos automáticos: `COMP`, `PORT`, `MON`, `IMP`, `MOB`, `VID`, `TEL`, `RED`, `OTRO`.
 
-Las sedes originales de Conviventia (extraídas del sistema legacy).
-
-### Áreas
-
-```
-GAF DIRECCIÓN ADMINISTRATIVA
-GAF DIRECCIÓN FINANCIERA
-GAF DIRECCIÓN CONTABLE
-GAF TALENTO HUMANO
-FOCO FAMILIA Y LIDERAZGO
-FOCO INFANCIA Y JUVENTUD
-FOCO INCLUSIÓN PRODUCTIVA
-FOCO ATENCIÓN HUMANITARIA
-GERENCIA DE COOPERACIÓN Y RELACIONAMIENTO
-```
-
-### Usuario Admin inicial
-
-Crear un usuario con rol ADMINISTRADOR para el primer acceso.
+El seed es idempotente (`on conflict do nothing`). **No crea usuarios** — el primer admin se promueve manualmente con SQL después de registrarse desde la app (ver §5.6).
 
 ---
 
@@ -496,75 +395,65 @@ Crear un usuario con rol ADMINISTRADOR para el primer acceso.
 
 ### 11.1. Server Action (mutación vía RPC)
 
-**Preferencia**: toda mutación que toca más de una tabla o requiere transaccionalidad pasa por un RPC PL/pgSQL (`security invoker`, `set search_path = public`). El Server Action sólo valida entradas, resuelve el user, y llama al RPC. La lógica de negocio (locks, cascadas, auditoría) vive en la BD.
-
-RPCs actualmente en uso:
-- `crear_bien_con_auditoria` / `actualizar_bien_con_auditoria` — inserta/actualiza `bienes` + entrada en `movimiento_bienes`
-- `crear_transferencia` — bloquea bien, valida estado ACTIVO + destino distinto, actualiza bien, inserta transferencia + movimiento
+**Preferencia**: toda mutación que toca más de una tabla o requiere transaccionalidad pasa por un RPC PL/pgSQL (`security invoker`, `set search_path = public`). El Server Action sólo valida entradas, resuelve el user, y llama al RPC. La lógica de negocio (locks, cascadas, auditoría, validación de rol) vive en la BD.
 
 ```typescript
 // app/(dashboard)/transferencias/actions.ts
-"use server"
+"use server";
 
-import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-import { createTransferenciaActionSchema } from "@/lib/validations/transferencia"
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { createTransferenciaActionSchema } from "@/lib/validations/transferencia";
 
 export async function crearTransferencia(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: "No autenticado" }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
 
   const parsed = createTransferenciaActionSchema.safeParse({
     id_bien: formData.get("id_bien"),
     sede_destino: formData.get("sede_destino"),
     // ...
-  })
-  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message }
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message };
+  }
 
   const { data, error } = await supabase.rpc("crear_transferencia", {
     p_id_bien: parsed.data.id_bien,
     p_sede_destino: parsed.data.sede_destino,
     // ...
     p_usuario_registro: user.id,
-  })
+  });
 
-  if (error) return { success: false, error: error.message }
+  if (error) return { success: false, error: error.message };
 
-  revalidatePath("/transferencias")
-  revalidatePath("/bienes")
-  return { success: true, id_transferencia: data as number }
+  revalidatePath("/transferencias");
+  revalidatePath("/bienes");
+  return { success: true, id_transferencia: data as number };
 }
 ```
 
-### 11.2. Hook de datos (lectura client-side)
+### 11.2. Lectura desde Server Component
 
 ```typescript
-// hooks/use-bienes.ts
-"use client"
+// app/(dashboard)/bienes/page.tsx
+import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/auth/require-rol";
+import { ROLES } from "@/lib/constants";
 
-import { useQuery } from "@tanstack/react-query"
-import { createClient } from "@/lib/supabase/client"
+export default async function BienesPage() {
+  const ctx = await getAuthContext();
+  const canWrite = ctx.rol === ROLES.ADMINISTRADOR || ctx.rol === ROLES.ESTANDAR;
 
-export function useBienes(sedeId?: number) {
-  const supabase = createClient()
+  const supabase = await createClient();
+  const { data: bienes } = await supabase
+    .from("bienes")
+    .select("*, sedes(nombre_sede), areas(nombre_area), profiles:id_responsable(nombre, apellido)")
+    .order("created_at", { ascending: false });
 
-  return useQuery({
-    queryKey: ["bienes", sedeId],
-    queryFn: async () => {
-      let query = supabase
-        .from("bienes")
-        .select("*, sedes(nombre_sede), areas(nombre_area), profiles(nombre, apellido)")
-        .order("created_at", { ascending: false })
-
-      if (sedeId) query = query.eq("id_sede", sedeId)
-
-      const { data, error } = await query
-      if (error) throw error
-      return data
-    },
-  })
+  return <BienesTable data={bienes ?? []} canWrite={canWrite} />;
 }
 ```
 
@@ -572,7 +461,7 @@ export function useBienes(sedeId?: number) {
 
 ```typescript
 // lib/validations/bien.ts
-import { z } from "zod"
+import { z } from "zod";
 
 export const createBienSchema = z.object({
   nombre: z.string().min(1, "El nombre es obligatorio"),
@@ -584,38 +473,51 @@ export const createBienSchema = z.object({
   placa: z.string().optional(),
   estado: z.enum(["ACTIVO", "INACTIVO"]).default("ACTIVO"),
   observaciones: z.string().optional(),
-})
+});
 
-export type CreateBienInput = z.infer<typeof createBienSchema>
+export type CreateBienInput = z.infer<typeof createBienSchema>;
 ```
 
 ---
 
 ## 12. Qué NO Hacer
 
-- ❌ No usar `any` en TypeScript
-- ❌ No desactivar RLS en ninguna tabla
-- ❌ No usar `supabase.auth.admin` ni `service_role` en componentes cliente
-- ❌ No eliminar registros físicamente (usar Soft Delete cambiando estado)
-- ❌ No hardcodear strings de roles. Usar constantes de `lib/constants.ts`
-- ❌ No crear API Routes (`app/api/`) cuando un Server Action es suficiente
-- ❌ No instalar librerías de UI adicionales. Usar shadcn/ui + Tailwind
-- ❌ No hacer fetch de datos en `useEffect`. Usar React Query o Server Components
-- ❌ No almacenar imágenes en base64 en la BD. Usar Supabase Storage
-- ❌ No mezclar español e inglés en nombres de variables/funciones (usar inglés para código, español para UI)
-- ❌ No commitear `.env.local` ni claves de Supabase
+- ❌ No usar `any` en TypeScript.
+- ❌ No desactivar RLS en ninguna tabla.
+- ❌ No usar `supabase.auth.admin` ni `service_role` en componentes cliente.
+- ❌ No eliminar registros físicamente (usar Soft Delete cambiando estado).
+- ❌ No hardcodear strings de roles. Usar constantes de `lib/constants.ts` (`ROLES.ADMINISTRADOR`, etc.).
+- ❌ No crear API Routes (`app/api/`) cuando un Server Action es suficiente.
+- ❌ No instalar librerías de UI adicionales. Usar shadcn/ui + Tailwind.
+- ❌ No hacer fetch de datos en `useEffect`. Usar Server Components.
+- ❌ No instalar React Query / Zustand sin justificación clara — el proyecto no los necesita hoy.
+- ❌ No almacenar imágenes en base64 en la BD. Usar Supabase Storage.
+- ❌ No mezclar español e inglés en nombres de variables/funciones (inglés para código, español para UI).
+- ❌ No commitear `.env.local` ni claves de Supabase. `.mcp.json` y `.claude/settings.local.json` también van al gitignore.
+- ❌ No saltar la validación de rol en RPCs nuevos. Si el RPC modifica datos, el primer `perform` debe ser `require_rol_escritura()` o `require_rol_admin()`.
 
 ---
 
-## 13. Contexto del Sistema Legacy
+## 13. Estado del Proyecto
 
-El sistema anterior fue construido en PHP nativo + MySQL + jQuery. Se puede consultar el código legacy en la carpeta `/legacy/conviventia/` (si se conserva) o en el repositorio original `diegohenao819-proyecto_systemact`. Los archivos clave para entender la lógica de negocio original son:
+### Completado
+- Auth (login, registro, recuperación), bienes (CRUD + imágenes + modal + **filtros por sede/área/tipo/estado**), sedes, áreas, **categorías (CRUD)**, transferencias, bajas (RPC + confirmación doble + historial), reportes (inventario por persona), historial (timeline por bien), panel de control con timeline + chart, usuarios con gestión de roles, RBAC en RLS + RPCs + guards de página + UI condicional, esquema reproducible (baseline + seed + config + README).
 
-- `contextos.txt` — Documentación completa de las mejoras implementadas en el legacy
-- `REQUISITOS_NEXTJS_SUPABASE.md` — Requerimientos funcionales detallados por módulo
-- `DOCUMENTO_ANALISIS_SEMANA_1_2.md` — Análisis técnico de la migración
-- `RespaldoBD_Inventario/*.sql` — Respaldos de la BD MySQL original
+### Pendiente del plan original (UTP)
+- **Pruebas funcionales y ajustes de usabilidad** (semana 11) — validación con usuarios reales (Kevin, equipo de Conviventia).
+- **Manuales** técnico y de usuario, presentación final (semana 12).
 
 ---
 
-*Última actualización: Abril 2026*
+## 14. Contexto del Sistema Legacy
+
+El sistema anterior fue construido en PHP nativo + MySQL + jQuery. Se puede consultar en el repositorio original `diegohenao819-proyecto_systemact`. Los archivos clave para entender la lógica de negocio original son:
+
+- `contextos.txt` — documentación de las mejoras implementadas en el legacy.
+- `REQUISITOS_NEXTJS_SUPABASE.md` — requerimientos funcionales detallados por módulo.
+- `DOCUMENTO_ANALISIS_SEMANA_1_2.md` — análisis técnico de la migración.
+- `RespaldoBD_Inventario/*.sql` — respaldos de la BD MySQL original.
+
+---
+
+*Última actualización: Mayo 2026*

@@ -17,3 +17,4 @@ Se conservan como referencia para entender la evolución del esquema.
 | `20260503123000_revoke_listar_usuarios_admin_public.sql` | Revoca EXECUTE de `public`/`anon` |
 | `20260503130000_bienes_lectura_abierta.sql` | Apertura de lectura de `bienes` a todos los autenticados |
 | `20260503140000_handle_new_user_consultor_default.sql` | `handle_new_user` ahora crea perfiles con rol `CONSULTOR` por default (antes `ADMINISTRADOR`) |
+| `20260504100000_crear_baja_rpc.sql` | RPC `crear_baja` — registra baja transaccional con auditoría, valida ADMIN y `usuario_registro = auth.uid()` |

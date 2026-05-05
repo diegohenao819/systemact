@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,10 +13,25 @@ import {
 } from "@tanstack/react-table";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight, Eye, ImageOff } from "lucide-react";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  ImageOff,
+  X,
+  Filter,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import {
   Table,
@@ -41,14 +56,39 @@ interface BienRow {
   observaciones: string | null;
   imagen_url: string | null;
   responsable_texto: string | null;
+  id_sede: number;
+  id_area: number | null;
+  id_caracteristica: number | null;
   created_at: string;
   sedes: { nombre_sede: string } | { nombre_sede: string }[] | null;
   areas: { nombre_area: string } | { nombre_area: string }[] | null;
+  caracteristicas:
+    | { codigo: string; descripcion: string }
+    | { codigo: string; descripcion: string }[]
+    | null;
   profiles:
     | { nombre: string; apellido: string }
     | { nombre: string; apellido: string }[]
     | null;
 }
+
+interface SedeOpt {
+  id_sede: number;
+  nombre_sede: string;
+}
+
+interface AreaOpt {
+  id_area: number;
+  nombre_area: string;
+}
+
+interface CaracteristicaOpt {
+  id_caracteristica: number;
+  codigo: string;
+  descripcion: string;
+}
+
+const ALL_SENTINEL = "__all__";
 
 // Supabase devuelve objeto o array según cómo infiere la relación.
 function unwrap<T>(value: T | T[] | null | undefined): T | null {
@@ -238,22 +278,71 @@ const columns: ColumnDef<BienRow>[] = [
 
 interface BienesTableProps {
   data: BienRow[];
+  sedes?: SedeOpt[];
+  areas?: AreaOpt[];
+  caracteristicas?: CaracteristicaOpt[];
   canWrite?: boolean;
+  canDarDeBaja?: boolean;
 }
 
-export function BienesTable({ data, canWrite = false }: BienesTableProps) {
+export function BienesTable({
+  data,
+  sedes = [],
+  areas = [],
+  caracteristicas = [],
+  canWrite = false,
+  canDarDeBaja = false,
+}: BienesTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [bienSeleccionado, setBienSeleccionado] = useState<BienRow | null>(
     null,
   );
 
+  const [filtroSede, setFiltroSede] = useState<string>(ALL_SENTINEL);
+  const [filtroArea, setFiltroArea] = useState<string>(ALL_SENTINEL);
+  const [filtroEstado, setFiltroEstado] = useState<string>(ALL_SENTINEL);
+  const [filtroTipo, setFiltroTipo] = useState<string>(ALL_SENTINEL);
+
+  const filtrosActivos =
+    [filtroSede, filtroArea, filtroEstado, filtroTipo].filter(
+      (v) => v !== ALL_SENTINEL,
+    ).length;
+
+  const limpiarFiltros = () => {
+    setFiltroSede(ALL_SENTINEL);
+    setFiltroArea(ALL_SENTINEL);
+    setFiltroEstado(ALL_SENTINEL);
+    setFiltroTipo(ALL_SENTINEL);
+  };
+
+  const dataFiltrada = useMemo(() => {
+    return data.filter((b) => {
+      if (filtroSede !== ALL_SENTINEL && b.id_sede !== Number(filtroSede)) {
+        return false;
+      }
+      if (filtroArea !== ALL_SENTINEL && b.id_area !== Number(filtroArea)) {
+        return false;
+      }
+      if (filtroEstado !== ALL_SENTINEL && b.estado !== filtroEstado) {
+        return false;
+      }
+      if (
+        filtroTipo !== ALL_SENTINEL &&
+        b.id_caracteristica !== Number(filtroTipo)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [data, filtroSede, filtroArea, filtroEstado, filtroTipo]);
+
   const visibleColumns = canWrite
     ? columns
     : columns.filter((col) => col.id !== "acciones");
 
   const table = useReactTable({
-    data,
+    data: dataFiltrada,
     columns: visibleColumns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -273,14 +362,92 @@ export function BienesTable({ data, canWrite = false }: BienesTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por código, nombre, sede, responsable..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-col gap-3">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por código, nombre, sede, responsable..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mr-1">
+            <Filter className="h-3.5 w-3.5" />
+            Filtros
+          </div>
+
+          <Select value={filtroSede} onValueChange={setFiltroSede}>
+            <SelectTrigger className="w-[170px] h-9">
+              <SelectValue placeholder="Sede" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SENTINEL}>Todas las sedes</SelectItem>
+              {sedes.map((s) => (
+                <SelectItem key={s.id_sede} value={String(s.id_sede)}>
+                  {s.nombre_sede}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroArea} onValueChange={setFiltroArea}>
+            <SelectTrigger className="w-[170px] h-9">
+              <SelectValue placeholder="Área" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SENTINEL}>Todas las áreas</SelectItem>
+              {areas.map((a) => (
+                <SelectItem key={a.id_area} value={String(a.id_area)}>
+                  {a.nombre_area}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+            <SelectTrigger className="w-[170px] h-9">
+              <SelectValue placeholder="Tipo de bien" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SENTINEL}>Todos los tipos</SelectItem>
+              {caracteristicas.map((c) => (
+                <SelectItem
+                  key={c.id_caracteristica}
+                  value={String(c.id_caracteristica)}
+                >
+                  <span className="font-mono text-xs mr-1.5">{c.codigo}</span>
+                  {c.descripcion}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+            <SelectTrigger className="w-[150px] h-9">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SENTINEL}>Todos</SelectItem>
+              <SelectItem value="ACTIVO">Activo</SelectItem>
+              <SelectItem value="INACTIVO">Inactivo</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filtrosActivos > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={limpiarFiltros}
+              className="h-9"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Limpiar ({filtrosActivos})
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card overflow-x-auto">
@@ -374,6 +541,7 @@ export function BienesTable({ data, canWrite = false }: BienesTableProps) {
           if (!open) setBienSeleccionado(null);
         }}
         canWrite={canWrite}
+        canDarDeBaja={canDarDeBaja}
       />
     </div>
   );

@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ImageOff, PenLine } from "lucide-react";
+import { ImageOff, PackageMinus, PenLine } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -46,6 +46,7 @@ interface BienDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canWrite?: boolean;
+  canDarDeBaja?: boolean;
 }
 
 const formatCOP = (value: number) =>
@@ -89,6 +90,7 @@ export function BienDetailDialog({
   open,
   onOpenChange,
   canWrite = false,
+  canDarDeBaja = false,
 }: BienDetailDialogProps) {
   if (!bien) return null;
 
@@ -187,10 +189,18 @@ export function BienDetailDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
+          {canDarDeBaja && bien.estado === "ACTIVO" && (
+            <Button variant="destructive" asChild>
+              <Link href={`/bajas/nueva?bien=${bien.id_bien}`}>
+                <PackageMinus className="h-4 w-4 mr-2" />
+                Dar de baja
+              </Link>
+            </Button>
+          )}
           {canWrite && (
             <Button asChild>
               <Link href={`/bienes/${bien.id_bien}`}>

@@ -4,6 +4,225 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 
 ---
 
+## 2026-05-04 — Filtros avanzados + módulo de Categorías (cierre de deudas semanas 3-4 y 7)
+
+### Funcionalidades
+
+#### 🔍 Filtros estructurados en `/bienes`
+
+Hasta hoy `/bienes` solo tenía búsqueda global por texto. Se añade una **barra de filtros** con 4 selectores combinables:
+
+- **Sede** — todas las sedes registradas.
+- **Área** — solo áreas activas.
+- **Tipo de bien** — todas las categorías (`caracteristicas`).
+- **Estado** — Activo o Inactivo (los `DE BAJA` siguen filtrados a nivel de query).
+
+Los filtros se combinan con AND. Un contador "Limpiar (N)" aparece cuando hay filtros activos para resetear todo de un click. La búsqueda global sigue funcionando encima de los filtros.
+
+#### 🏷️ Módulo `/categorias` — CRUD de tipos de bien
+
+Cierra el entregable pendiente de las semanas 3-4 del plan (que decía "CRUD de categorías"). La tabla subyacente es `caracteristicas` (los tipos con prefijo para los códigos automáticos), pero la UI la llama "Categorías" porque es el término que pide el plan.
+
+- Lista con búsqueda global, orden por columnas y paginación de 15 filas.
+- Columna **"Bienes"** que muestra cuántos bienes están registrados con esa categoría (count agregado vía Supabase relación).
+- Botón **"Nueva categoría"** (solo ADMIN) abre dialog con:
+  - Código (prefijo) — input mayúsculas con regex `/^[A-Z0-9]{2,8}$/`.
+  - Descripción — texto libre, 3-120 caracteres.
+  - Observaciones — textarea opcional, máx. 500 caracteres.
+- Botón "Editar" por fila (ícono de lápiz, solo ADMIN) reusa el mismo dialog.
+- **No hay borrado**: hay FK desde `bienes.id_caracteristica`. Si se necesita "ocultar" una categoría a futuro, se agrega un campo `activo`.
+
+### Diseño técnico
+
+#### Filtros como `useMemo` sobre el dataset cliente
+
+La data de `/bienes` se carga completa en server (sin paginación a nivel BD). Los filtros se aplican en cliente con `useMemo`, así no hay round-trips por cada cambio de selector. Para el volumen esperado (~500-2000 bienes activos), es más rápido y simple que filtros server-side.
+
+#### Sentinel `__all__` en los Selects
+
+shadcn/ui `Select` requiere un `value` string para cada item; "todas las sedes" no puede ser `""` ni `null`. Se usa un sentinel `"__all__"` que el componente trata como "sin filtro".
+
+#### Ruta `/categorias` apunta a tabla `caracteristicas`
+
+Decisión de naming:
+- **DB** mantiene `caracteristicas` (no se renombra para no romper FK ni RPCs).
+- **UI** usa "Categorías" (alineado con el plan original y el lenguaje de Conviventia).
+- Mapeo en server actions: `crearCategoria` hace insert en `caracteristicas`.
+
+### Cambios en frontend
+
+| Archivo | Cambio |
+|---------|--------|
+| `lib/constants.ts` | Añade ítem "Categorías" al sidebar (`Tag` icon) |
+| `lib/validations/categoria.ts` | **Nuevo** — schemas Zod (TS + FormData) con regex de código, longitudes |
+| `app/(dashboard)/categorias/page.tsx` | **Reemplaza el stub previo (no existía aún)** — server component con count agregado |
+| `app/(dashboard)/categorias/categorias-table.tsx` | **Nuevo** — tabla con badge de código, contador de bienes, sortable |
+| `app/(dashboard)/categorias/categoria-dialog.tsx` | **Nuevo** — modal de crear/editar con auto-uppercase del código |
+| `app/(dashboard)/categorias/actions.ts` | **Nuevo** — `crearCategoria` / `actualizarCategoria` con guard ADMIN, manejo de duplicados (`23505`) |
+| `app/(dashboard)/bienes/page.tsx` | Carga sedes, áreas y categorías en paralelo + bienes con FKs incluidas (`id_sede`, `id_area`, `id_caracteristica`, joins de `caracteristicas`) |
+| `app/(dashboard)/bienes/bienes-table.tsx` | Estado de 4 filtros + memo de filtrado + barra de filtros con icono `Filter` y botón "Limpiar (N)" |
+
+### Sin cambios en BD
+
+La tabla `caracteristicas` ya existía con todos los campos necesarios (`codigo`, `descripcion`, `observaciones`). El CRUD escribe directo a la tabla con las RLS existentes (`caracteristicas_insert` y `caracteristicas_update` ya restringen a ADMIN/ESTANDAR; el server action restringe a ADMIN).
+
+### Cierre de deudas del cronograma
+
+Con esto quedan cubiertas las dos deudas que arrastrábamos del plan:
+
+- ✅ **Semana 3-4** — CRUD de categorías (faltaba la UI).
+- ✅ **Semana 7** — Filtros estructurados en consultas (la búsqueda global existía, faltaban los filtros).
+
+El cronograma 1-10 está totalmente cerrado. Sigue **semana 11 — Pruebas y ajustes finales** (validación con usuarios reales) y **semana 12 — Documentación y cierre**.
+
+---
+
+## 2026-05-04 — Reportes e historial (semana 10 del plan)
+
+### Funcionalidades
+
+#### 📊 `/reportes` — Inventario por persona
+
+- Selector de persona (todos los perfiles activos, ordenados por nombre).
+- Encabezado con datos del responsable: cédula, cargo, área, sede, número de bienes asignados, cantidad total.
+- Tabla con todos los bienes activos asignados a esa persona:
+  - Columnas: código, nombre, sede, área, placa/serial, estado, cantidad, valor unitario, valor total.
+  - Filtra automáticamente bienes en estado `DE BAJA` (no aparecen en el reporte).
+  - Footer con totales agregados (cantidad total + valor total en COP).
+- Selección reactiva por query string (`?persona=<uuid>`) — al cambiar el selector, la URL se actualiza y la tabla se rehidrata.
+- Soporte de impresión: clases `print:` ocultan navegación y selector al imprimir, y muestran un footer "Generado por SYSTEMACT · Conviventia · <fecha>". Para exportar a PDF, el usuario imprime con Ctrl+P / Cmd+P y elige "Guardar como PDF".
+
+#### 📜 `/historial` — Trazabilidad por bien
+
+- Selector de bien (todos los bienes, mostrando código + nombre, con sufijo de estado si no es ACTIVO).
+- Panel de información actual: código, nombre, estado (badge coloreado), sede, área, responsable, cantidad, valor unitario, valor total, placa, serial.
+- Si el bien está en estado `DE BAJA`: alerta roja con motivo, fecha y descripción de la baja.
+- **Timeline cronológico** de movimientos (`movimiento_bienes`):
+  - Línea vertical con íconos coloreados por tipo: REGISTRO (azul), MODIFICACIÓN (ámbar), TRANSFERENCIA (púrpura), BAJA (rojo).
+  - Cada evento: tipo + fecha completa + detalle + usuario que lo registró.
+  - Orden cronológico ascendente (del más antiguo al más reciente).
+- Bloque de observaciones del bien si existen.
+- Mismo soporte de impresión que `/reportes`.
+
+### Diseño técnico
+
+#### Por qué Server Components + searchParams
+
+Ambas páginas usan el patrón **Server Component con searchParams** en lugar de fetch en cliente:
+
+- La selección persiste en URL (`/reportes?persona=<uuid>`, `/historial?bien=<id>`) — compartible, marcable, atrás/adelante del navegador funcionan.
+- No hace falta estado cliente ni React Query — el fetch ocurre en server, lo que renderiza Next.js es HTML ya con datos.
+- `Suspense` con `key={selección}` re-monta el contenido al cambiar la selección, mostrando el skeleton mientras carga.
+- El selector cliente (`PersonaSelector`, `BienSelector`) solo hace `router.push()` con el nuevo query — es muy delgado.
+
+#### Reutilización de componentes existentes
+
+El timeline reusa el mismo sistema de íconos y colores que [actividad-reciente.tsx](app/(dashboard)/inicio/actividad-reciente.tsx). En el futuro, si se quiere extraer a `components/shared/movimientos-timeline.tsx`, ya están alineados visualmente.
+
+### Cambios en frontend
+
+| Archivo | Cambio |
+|---------|--------|
+| `app/(dashboard)/reportes/page.tsx` | **Reemplaza el stub** — server component con selector + tabla por persona |
+| `app/(dashboard)/reportes/persona-selector.tsx` | **Nuevo** — selector cliente que actualiza el query string |
+| `app/(dashboard)/historial/page.tsx` | **Reemplaza el stub** — server component con info del bien + timeline + alerta de baja |
+| `app/(dashboard)/historial/bien-selector.tsx` | **Nuevo** — selector cliente con código + nombre + estado |
+
+### Sin cambios en BD
+
+Toda la data ya estaba disponible: `movimiento_bienes` se llena automáticamente desde los RPCs de `crear_bien_con_auditoria`, `actualizar_bien_con_auditoria`, `crear_transferencia` y `crear_baja`. Las dos páginas son consultas con `select` + joins. Cero migraciones.
+
+### Cierre del entregable de la semana 10
+
+Con esto queda completo el bloque "Reportes de inventario por persona y de movimientos. Ambos reportes funcionales" del plan original. El siguiente bloque del cronograma es **semana 11 — Pruebas y ajustes finales** (pruebas funcionales, correcciones de errores, ajustes de usabilidad) y **semana 12 — Documentación y cierre del proyecto** (manual técnico, manual de usuario, presentación final).
+
+### Pendiente del plan que sigue sin implementar
+
+- **Categorías** (semana 3-4) — no tiene CRUD de UI; el equivalente más cercano es `caracteristicas` que ya carga desde el seed.
+- **Filtros avanzados** (semana 7) — hoy hay búsqueda global y orden por columna; faltan filtros estructurados por sede / área / estado / rango de valor.
+
+---
+
+## 2026-05-04 — Módulo de Bajas (semana 8-9 del plan)
+
+### Funcionalidades
+
+#### 📦 Dar de baja un bien
+
+- Página `/bajas/nueva` (solo ADMIN) con formulario de baja:
+  - Selector de bien (solo bienes en estado `ACTIVO`).
+  - Panel "información actual" del bien (sede, área, responsable, cantidad, valor) en modo lectura.
+  - Select de motivo (los 7 tipos del CHECK: `DAÑO IRREPARABLE`, `OBSOLESCENCIA`, `ROBO`, `PERDIDA`, `DONACION`, `VENTA`, `OTRO`).
+  - Textarea de descripción opcional (máx. 500 caracteres).
+  - Banner de advertencia: "Esta acción es irreversible".
+  - **Confirmación doble** antes de submit — modal con código del bien, motivo y mensaje "Esta acción no puede deshacerse".
+  - Acepta query param `?bien=<id>` para preseleccionar desde el modal de detalle.
+
+#### 📜 Historial `/bajas`
+
+- Tabla histórica con columnas: Fecha, Bien (código + nombre), Motivo (badge con color por tipo), Descripción (con tooltip si excede), Quién registró.
+- Búsqueda global, orden por fecha/bien/motivo, paginación de 15 filas.
+- Misma estética que `/transferencias`.
+
+#### 🔗 Integración con `/bienes`
+
+- Modal de detalle de bien: nuevo botón **"Dar de baja"** (rojo, destructive) visible solo si rol = ADMIN y `estado = 'ACTIVO'`. Navega a `/bajas/nueva?bien=<id>`.
+- Listado `/bienes` ahora **excluye** bienes en estado `DE BAJA` por defecto. Esos viven solo en `/bajas`. ACTIVO + INACTIVO siguen visibles.
+
+### Cambios en base de datos
+
+#### Nuevo RPC `crear_baja(p_id_bien, p_motivo, p_descripcion, p_usuario_registro)`
+
+`security invoker` + `set search_path = public`. Validaciones por orden:
+
+1. `perform require_rol_admin()` — solo admin activo.
+2. `p_usuario_registro = auth.uid()` — el caller no puede falsificar el autor de la baja. Si no coincide, `raise exception` con código `42501`.
+3. Motivo válido contra el array de los 7 tipos (mensaje claro antes que el CHECK constraint).
+4. `select … for update` sobre el bien.
+5. Bien debe existir y estar `ACTIVO`.
+6. No puede haber ya una baja registrada para ese mismo `id_bien` (no doble baja).
+
+Efectos transaccionales:
+- `insert into bajas` con motivo, descripción, usuario_registro.
+- `update bienes set estado = 'DE BAJA', updated_at = now()`.
+- `insert into movimiento_bienes` con `tipo_movimiento = 'BAJA'` y detalle formateado: `"Baja de <código> (<nombre>): <motivo>"`.
+
+### Por qué `usuario_registro` no es editable
+
+Se evaluó si el formulario debería permitir escoger al "autor" de la baja. La decisión fue **no**: el RPC fuerza `p_usuario_registro = auth.uid()` y el server action no expone el campo. Razones:
+
+- **No repudio**: si el autor se puede escoger, la auditoría se vuelve cosmética.
+- **Consistencia**: `crear_bien_con_auditoria` y `crear_transferencia` ya usan el mismo patrón.
+- **Cumplimiento**: como ONG, Conviventia es auditada por entes externos (DIAN, Cámara de Comercio, donantes); el log debe ser firme.
+
+### Cambios en frontend
+
+| Archivo | Cambio |
+|---------|--------|
+| `lib/validations/baja.ts` | **Nuevo** — schemas Zod (TS + FormData con `z.coerce`) usando `MOTIVOS_BAJA` |
+| `app/(dashboard)/bajas/page.tsx` | **Reemplaza el stub** — guard de auth, query con joins, header con botón "Nueva Baja" condicional |
+| `app/(dashboard)/bajas/bajas-table.tsx` | **Nuevo** — tabla con badge de motivo coloreado por tipo |
+| `app/(dashboard)/bajas/nueva/page.tsx` | **Nuevo** — `requireRol(ADMIN_ONLY)`, carga bienes activos |
+| `app/(dashboard)/bajas/baja-form.tsx` | **Nuevo** — form con info-card del bien, select de motivo, textarea, banner de advertencia, dialog de confirmación |
+| `app/(dashboard)/bajas/actions.ts` | **Nuevo** — server action `crearBaja` con validación ADMIN + Zod |
+| `app/(dashboard)/bienes/bien-detail-dialog.tsx` | Nuevo prop `canDarDeBaja`; botón "Dar de baja" rojo cuando rol=ADMIN y estado=ACTIVO |
+| `app/(dashboard)/bienes/bienes-table.tsx` | Propaga `canDarDeBaja` al modal de detalle |
+| `app/(dashboard)/bienes/page.tsx` | Lee rol, calcula `canDarDeBaja`; query filtra `.neq("estado", "DE BAJA")` |
+
+### Migración añadida
+
+| Archivo | Contenido |
+|---------|-----------|
+| `supabase/migrations/_archive/20260504100000_crear_baja_rpc.sql` | RPC `crear_baja` con todas las validaciones |
+
+El baseline `00000000000000_initial_schema.sql` ya incluye `crear_baja` para que cualquier clone limpio lo tenga sin necesidad de aplicar la migración archivada.
+
+### Cierre del entregable de la semana 8-9
+
+Con esto queda completo el bloque "Transferencias y bajas" del plan original. El siguiente entregable es **semana 10 — Reportes** (inventario por persona, inventario por bien con historial de movimientos).
+
+---
+
 ## 2026-05-03 — Control de acceso por rol (RBAC) + módulo `/usuarios` + esquema reproducible
 
 ### Funcionalidades
@@ -335,16 +554,17 @@ El proyecto de Supabase se pausa automáticamente tras ~7 días sin actividad en
 - **Sedes** — CRUD
 - **Áreas** — CRUD
 - **Transferencias** — registro de movimientos entre sedes/áreas/responsables con auditoría
+- **Bajas** — RPC `crear_baja` + form con confirmación doble + historial con badges por motivo
+- **Reportes** — inventario por persona con totales y soporte de impresión
+- **Historial** — timeline de movimientos por bien con info actual + alerta de baja
 - **Panel de control** — KPIs + actividad reciente + gráfico por sede
 - **Usuarios** — gestión de roles, activación/desactivación, último-admin protegido
 - **Control de acceso por rol** — RLS + RPCs `require_rol_*` + guards de página + UI condicional
 
-### Módulos pendientes (stubs "Módulo en construcción")
-- `/bajas` — dar de baja activos (tabla `bajas` ya definida en esquema, RPC pendiente)
-- `/historial` — visualizador del log `movimiento_bienes`
-- `/reportes` — analíticas por sede, área, tipo, costo
+### Sin módulos pendientes según el cronograma 1-10
+
+Las semanas 1-10 del plan están cubiertas. Siguen las semanas 11 (pruebas) y 12 (documentación).
 
 ### Pendientes del plan original
-- **Categorías** — CRUD no implementado (semana 3-4 del plan).
-- **Filtros avanzados** en consultas (filtros por sede, área, estado, etc. — semana 7).
-- **Manuales** técnico y de usuario, presentación final (semana 12).
+- **Pruebas funcionales y ajustes de usabilidad** (semana 11).
+- **Manual técnico, manual de usuario, presentación final** (semana 12).
