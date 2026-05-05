@@ -73,7 +73,7 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
+          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
           <CardDescription>
             Ingresa tus datos para registrarte en SYSTEMACT
           </CardDescription>
@@ -125,7 +125,7 @@ export function SignUpForm({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="repeat-password">Repetir Contraseña *</Label>
+                <Label htmlFor="repeat-password">Repetir contraseña *</Label>
                 <Input
                   id="repeat-password"
                   type="password"

@@ -12,6 +12,8 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 - Incluye logo de Conviventia, nombre SYSTEMACT, botones **Iniciar sesión** y **Registrarse**.
 - El diseño es sobrio y minimalista: fondo blanco, tipografía limpia, acciones claras y una fila discreta con módulos clave (Bienes, Transferencias, Reportes).
 - `/` queda como ruta pública; las rutas protegidas siguen redirigiendo a `/auth/login` cuando no hay sesión.
+- Se revisan y traducen los módulos públicos de autenticación: login, registro, recuperación de contraseña, actualización de contraseña, errores de confirmación y botones auxiliares.
+- El atributo raíz queda como `lang="es"` para alinear accesibilidad e idioma con la UI.
 
 ### Cambios técnicos
 

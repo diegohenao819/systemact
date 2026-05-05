@@ -14,9 +14,9 @@ test.describe("flujos autenticados", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/auth/login");
     await page.waitForLoadState("networkidle");
-    await page.getByLabel("Email").fill(email ?? "");
-    await page.getByLabel("Password").fill(password ?? "");
-    const submit = page.getByRole("button", { name: /^login$/i });
+    await page.getByLabel("Correo electrónico").fill(email ?? "");
+    await page.getByLabel("Contraseña").fill(password ?? "");
+    const submit = page.getByRole("button", { name: /^iniciar sesión$/i });
     await expect(submit).toBeEnabled();
     await submit.click();
     await expect(page).toHaveURL(/\/inicio/);
