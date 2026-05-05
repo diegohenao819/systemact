@@ -8,6 +8,16 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sistema de inventario Conviventia",
+  description:
+    "Portada de SYSTEMACT, sistema interno de inventario para bienes, transferencias, bajas, reportes e historial de Conviventia.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 const highlights = [
   {
@@ -31,8 +41,28 @@ const highlights = [
 ];
 
 export default function RootPage() {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "SYSTEMACT",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    inLanguage: "es-CO",
+    description:
+      "Sistema interno de inventario para Conviventia: gestión de bienes, transferencias, bajas, reportes e historial.",
+    publisher: {
+      "@type": "Organization",
+      name: "Conviventia",
+      url: "https://conviventia.org",
+    },
+  };
+
   return (
     <main className="min-h-svh bg-white text-slate-950">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <header className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-3">
           <Image

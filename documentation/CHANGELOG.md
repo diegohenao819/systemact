@@ -4,6 +4,31 @@ Cambios relevantes del proyecto SYSTEMACT, ordenados del más reciente al más a
 
 ---
 
+## 2026-05-05 — SEO básico y metadatos públicos
+
+### Funcionalidad
+
+- Se mejora la metadata global del sitio:
+  - título con template (`%s | SYSTEMACT`);
+  - descripción en español;
+  - keywords relevantes;
+  - autor, creator y publisher como Conviventia;
+  - canonical de la portada;
+  - favicon/apple icon usando el logo existente.
+- Se configura Open Graph y Twitter Card con las imágenes existentes `opengraph-image.png` y `twitter-image.png`.
+- La portada `/` incluye metadata específica y JSON-LD tipo `SoftwareApplication`.
+- Se añade `robots.txt` y `sitemap.xml`.
+- Se marca `noindex, nofollow` para rutas de autenticación y panel interno.
+- El proxy excluye `robots.txt` y `sitemap.xml` para que sean públicos y no redirijan al login.
+
+### Verificación
+
+- ✅ `npm run lint`
+- ✅ `npm run build`
+- ✅ `npm run test:e2e` — 6 tests pasan, incluyendo smoke test de metadata SEO
+
+---
+
 ## 2026-05-05 — Portada pública minimalista
 
 ### Funcionalidad

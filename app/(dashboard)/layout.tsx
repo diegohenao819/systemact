@@ -3,7 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import type { Rol } from "@/lib/constants";
+import type { Metadata } from "next";
 import { Suspense } from "react";
+
+export const metadata: Metadata = {
+  title: "Panel interno",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 // Componente async que carga los datos del usuario
 async function DashboardShell({ children }: { children: React.ReactNode }) {
