@@ -175,12 +175,6 @@ archivo descargable. Todos reutilizan `lib/export/excel.ts` para:
 8. Actualiza este archivo, `README.md` o `supabase/README.md` si el cambio
    introduce una convención nueva.
 
-## Nombres y lenguaje
-
-La UI está en español de Colombia. El código usa nombres consistentes con el
-dominio del proyecto: `bien`, `sede`, `area`, `transferencia`, `baja` y
-`responsable`. Evita mezclar conceptos nuevos en inglés cuando ya existe un
-término de dominio en español.
 
 ## Archivos recomendados para empezar
 
