@@ -9,6 +9,7 @@ function unwrap<T>(value: T | T[] | null | undefined): T | null {
 
 interface BienConSede {
   id_sede: number | null;
+  cantidad: number | null;
   sedes:
     | { nombre_sede: string }
     | { nombre_sede: string }[]
@@ -20,7 +21,7 @@ export async function BienesPorSede() {
 
   const { data, error } = await supabase
     .from("bienes")
-    .select("id_sede, sedes ( nombre_sede )")
+    .select("id_sede, cantidad, sedes ( nombre_sede )")
     .eq("estado", "ACTIVO");
 
   if (error) {
@@ -37,7 +38,8 @@ export async function BienesPorSede() {
   const counts = new Map<string, number>();
   for (const bien of (data ?? []) as BienConSede[]) {
     const sede = unwrap(bien.sedes)?.nombre_sede ?? "Sin sede";
-    counts.set(sede, (counts.get(sede) ?? 0) + 1);
+    const cantidad = bien.cantidad ?? 0;
+    counts.set(sede, (counts.get(sede) ?? 0) + cantidad);
   }
 
   const chartData = Array.from(counts.entries())

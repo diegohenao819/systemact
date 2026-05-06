@@ -2,6 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
+/**
+ * Refresca la sesión de Supabase en cada request cubierta por `proxy.ts`.
+ *
+ * Este helper mantiene sincronizadas las cookies entrantes y salientes. Si no
+ * hay claims de usuario y la ruta no es pública, redirige al login antes de que
+ * la página protegida intente cargar datos.
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,

@@ -12,6 +12,13 @@ interface ActionResult {
   id_baja?: number;
 }
 
+/**
+ * Da de baja un bien de forma irreversible desde la UI administrativa.
+ *
+ * La Server Action valida que el usuario sea administrador y el RPC `crear_baja`
+ * hace la transacción: cambia el estado del bien, inserta `bajas` y registra el
+ * movimiento de auditoría.
+ */
 export async function crearBaja(formData: FormData): Promise<ActionResult> {
   try {
     const ctx = await getAuthContext();
@@ -43,9 +50,10 @@ export async function crearBaja(formData: FormData): Promise<ActionResult> {
     });
 
     if (error) {
+      console.error("Error al crear baja", error);
       return {
         success: false,
-        error: error.message ?? "Error al registrar la baja",
+        error: "No se pudo registrar la baja",
       };
     }
 

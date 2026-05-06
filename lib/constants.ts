@@ -12,7 +12,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ── Roles ──
+// Roles de negocio. Mantener estos literales alineados con los CHECK
+// constraints y funciones RPC en la migración principal de Supabase.
 export const ROLES = {
   ADMINISTRADOR: "ADMINISTRADOR",
   ESTANDAR: "ESTANDAR",
@@ -21,14 +22,14 @@ export const ROLES = {
 
 export type Rol = (typeof ROLES)[keyof typeof ROLES];
 
-// ── Estados de bienes ──
+// Estados persistidos en `bienes.estado`. `DE BAJA` funciona como soft delete.
 export const ESTADOS_BIEN = {
   ACTIVO: "ACTIVO",
   INACTIVO: "INACTIVO",
   DE_BAJA: "DE BAJA",
 } as const;
 
-// ── Motivos de baja ──
+// Motivos aceptados por el formulario y por el CHECK constraint de la BD.
 export const MOTIVOS_BAJA = [
   "DAÑO IRREPARABLE",
   "OBSOLESCENCIA",
@@ -39,7 +40,7 @@ export const MOTIVOS_BAJA = [
   "OTRO",
 ] as const;
 
-// ── Navegación del sidebar ──
+// Configuración declarativa del sidebar. El layout filtra cada item según rol.
 export interface NavItem {
   label: string;
   href: string;

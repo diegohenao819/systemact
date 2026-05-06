@@ -35,7 +35,8 @@ export const COP_FORMAT = '"$"#,##0;[Red]-"$"#,##0';
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Crea un workbook con metadata estándar del proyecto.
+ * Crea un workbook con metadata estándar del proyecto para que todos los
+ * reportes exportados tengan autor, fechas y formato base consistentes.
  */
 export function createWorkbook(): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
@@ -91,7 +92,8 @@ export function timestampSuffix(): string {
 }
 
 /**
- * Format helper: nombres del responsable a partir de profile relacional.
+ * Normaliza relaciones de Supabase que pueden llegar como objeto, arreglo o
+ * null según el tipo inferido por `select()`.
  */
 export function unwrap<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;

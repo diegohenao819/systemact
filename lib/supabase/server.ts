@@ -2,9 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 /**
- * Especially important if using Fluid compute: Don't put this client in a
- * global variable. Always create a new client within each function when using
- * it.
+ * Crea un cliente Supabase para Server Components, Server Actions y Route
+ * Handlers.
+ *
+ * Debe llamarse dentro de cada request, no guardarse en una variable global.
+ * El cliente lee y actualiza las cookies HTTP-only que usa Supabase Auth para
+ * mantener la sesión sincronizada entre navegador y servidor.
  */
 export async function createClient() {
   const cookieStore = await cookies();

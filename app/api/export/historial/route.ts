@@ -56,6 +56,13 @@ interface BajaInfo {
     | null;
 }
 
+/**
+ * Exporta el historial completo de un bien.
+ *
+ * Recibe `?bien=<id>` y arma un workbook con datos actuales, información de
+ * baja si existe y timeline de movimientos. Es de solo lectura y queda sujeto a
+ * la sesión y a las políticas RLS.
+ */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

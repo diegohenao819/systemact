@@ -51,6 +51,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-
-
-Agents.MD# Agentes en Supabase
+# Documentos locales de trabajo que no se publican en GitHub
+AGENTS.md
+documentation/CHANGELOG.md

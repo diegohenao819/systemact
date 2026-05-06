@@ -11,6 +11,12 @@ interface ActionResult {
   error?: string;
 }
 
+/**
+ * Crea una sede del catálogo de ubicaciones.
+ *
+ * Solo administradores pueden modificar sedes porque afectan filtros,
+ * reportes y ubicación de bienes.
+ */
 export async function crearSede(formData: FormData): Promise<ActionResult> {
   try {
     const ctx = await getAuthContext();
@@ -49,6 +55,9 @@ export async function crearSede(formData: FormData): Promise<ActionResult> {
   }
 }
 
+/**
+ * Actualiza los datos descriptivos de una sede.
+ */
 export async function actualizarSede(
   formData: FormData,
 ): Promise<ActionResult> {

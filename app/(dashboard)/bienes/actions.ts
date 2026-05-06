@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getAuthContext, WRITE_ROLES } from "@/lib/auth/require-rol";
 import {
   createBienActionSchema,
   updateBienActionSchema,
@@ -12,14 +13,23 @@ interface ActionResult {
   error?: string;
 }
 
+/**
+ * Crea un bien desde el formulario principal de inventario.
+ *
+ * La acción valida sesión, rol y payload, pero delega la generación del código,
+ * el cálculo de `valor_total` y la auditoría al RPC `crear_bien_con_auditoria`.
+ */
 export async function crearBien(formData: FormData): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (!WRITE_ROLES.includes(ctx.rol)) {
+      return {
+        success: false,
+        error: "No tienes permisos para crear bienes",
+      };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       nombre: formData.get("nombre"),
@@ -66,7 +76,7 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
         p_valor_unitario: parsed.data.valor_unitario,
         p_estado: parsed.data.estado,
         p_observaciones: parsed.data.observaciones || null,
-        p_usuario_responsable: user.id,
+        p_usuario_responsable: ctx.userId,
         p_imagen_url: parsed.data.imagen_url || null,
       },
     );
@@ -90,16 +100,25 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
   }
 }
 
+/**
+ * Actualiza datos editables de un bien existente.
+ *
+ * Igual que la creación, la operación real pasa por PostgreSQL para conservar
+ * RLS, validaciones de negocio y registro en `movimiento_bienes`.
+ */
 export async function actualizarBien(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (!WRITE_ROLES.includes(ctx.rol)) {
+      return {
+        success: false,
+        error: "No tienes permisos para editar bienes",
+      };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       id_bien: formData.get("id_bien"),
@@ -148,7 +167,7 @@ export async function actualizarBien(
       p_valor_unitario: updateData.valor_unitario,
       p_estado: updateData.estado,
       p_observaciones: updateData.observaciones || null,
-      p_usuario_responsable: user.id,
+      p_usuario_responsable: ctx.userId,
       p_imagen_url: updateData.imagen_url || null,
     });
 

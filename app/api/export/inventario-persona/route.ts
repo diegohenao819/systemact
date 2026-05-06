@@ -30,6 +30,12 @@ interface BienAsignado {
     | null;
 }
 
+/**
+ * Exporta los bienes activos asignados a una persona.
+ *
+ * Recibe `?persona=<uuid>` y genera un Excel listo para entrega o revisión
+ * interna, con datos del responsable, detalle de bienes y totales valorizados.
+ */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

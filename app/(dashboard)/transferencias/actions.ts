@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getAuthContext, WRITE_ROLES } from "@/lib/auth/require-rol";
 import { createTransferenciaActionSchema } from "@/lib/validations/transferencia";
 
 interface ActionResult {
@@ -10,16 +11,26 @@ interface ActionResult {
   id_transferencia?: number;
 }
 
+/**
+ * Registra una transferencia de ubicación/responsable.
+ *
+ * El RPC `crear_transferencia` ejecuta la parte crítica: bloquea el bien,
+ * verifica que esté ACTIVO, evita transferir a la misma ubicación y escribe la
+ * auditoría en una sola transacción.
+ */
 export async function crearTransferencia(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    const supabase = await createClient();
+    const ctx = await getAuthContext();
+    if (!WRITE_ROLES.includes(ctx.rol)) {
+      return {
+        success: false,
+        error: "No tienes permisos para registrar transferencias",
+      };
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const supabase = await createClient();
 
     const raw = {
       id_bien: formData.get("id_bien"),
@@ -55,13 +66,14 @@ export async function crearTransferencia(
       p_responsable_destino: responsableDestino,
       p_responsable_destino_texto: responsableDestinoTexto,
       p_motivo: parsed.data.motivo,
-      p_usuario_registro: user.id,
+      p_usuario_registro: ctx.userId,
     });
 
     if (error) {
+      console.error("Error al crear transferencia", error);
       return {
         success: false,
-        error: error.message ?? "Error al registrar la transferencia",
+        error: "No se pudo registrar la transferencia",
       };
     }
 

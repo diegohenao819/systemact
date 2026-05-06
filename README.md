@@ -108,7 +108,9 @@ systemact/
 │   ├── seed.sql              # Catálogos de ejemplo
 │   ├── config.toml           # Config del CLI
 │   └── README.md             # Setup detallado de la BD
-├── documentation/CHANGELOG.md
+├── documentation/
+│   ├── CODE_GUIDE.md          # Guía para entender la arquitectura y flujos del código
+│   └── CHANGELOG.md
 └── AGENTS.md                 # Guía detallada para colaboradores y agentes
 ```
 
@@ -133,6 +135,7 @@ Sin credenciales, Playwright omite los flujos autenticados y solo valida que las
 ## Documentación
 
 - [`AGENTS.md`](AGENTS.md) — guía exhaustiva del proyecto: arquitectura, modelo de datos, convenciones de código, flujos de auth.
+- [`documentation/CODE_GUIDE.md`](documentation/CODE_GUIDE.md) — guía de lectura del código para nuevos colaboradores: capas, flujos, contratos y puntos de extensión.
 - [`supabase/README.md`](supabase/README.md) — setup de la BD, modelo de roles, cómo agregar migraciones.
 - [`documentation/CHANGELOG.md`](documentation/CHANGELOG.md) — historial detallado de cambios.
 

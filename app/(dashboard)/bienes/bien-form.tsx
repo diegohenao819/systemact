@@ -32,6 +32,19 @@ import { actualizarBien, crearBien } from "./actions";
 
 const MAX_IMAGE_SIZE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const STORAGE_PUBLIC_MARKER = "/storage/v1/object/public/bienes/";
+
+function extractBienesStoragePath(url: string): string | null {
+  const idx = url.indexOf(STORAGE_PUBLIC_MARKER);
+  if (idx === -1) return null;
+  const raw = url.substring(idx + STORAGE_PUBLIC_MARKER.length);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
 interface Sede {
   id_sede: number;
@@ -151,8 +164,9 @@ export function BienForm({
     }
 
     setUploadingImage(true);
+    const supabase = createClient();
+    const previousUrl = imagenUrl;
     try {
-      const supabase = createClient();
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const nombreArchivo = `${crypto.randomUUID()}.${ext}`;
 
@@ -176,15 +190,37 @@ export function BienForm({
       setImagenUrl(publicUrl);
       form.setValue("imagen_url", publicUrl);
       toast.success("Imagen cargada");
+
+      const previousPath = extractBienesStoragePath(previousUrl);
+      if (previousPath) {
+        const { error: removeError } = await supabase.storage
+          .from("bienes")
+          .remove([previousPath]);
+        if (removeError) {
+          console.error("No se pudo eliminar la imagen anterior", removeError);
+        }
+      }
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    const previousUrl = imagenUrl;
     setImagenUrl("");
     form.setValue("imagen_url", "");
+
+    const previousPath = extractBienesStoragePath(previousUrl);
+    if (!previousPath) return;
+
+    const supabase = createClient();
+    const { error: removeError } = await supabase.storage
+      .from("bienes")
+      .remove([previousPath]);
+    if (removeError) {
+      console.error("No se pudo eliminar la imagen", removeError);
+    }
   };
 
   const toggleModoResponsable = () => {

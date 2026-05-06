@@ -27,8 +27,6 @@ export default function robots(): MetadataRoute.Robots {
         "/sedes",
         "/transferencias",
         "/usuarios",
-        "/protected",
-        "/instruments",
       ],
     },
     sitemap: `${siteUrl}/sitemap.xml`,

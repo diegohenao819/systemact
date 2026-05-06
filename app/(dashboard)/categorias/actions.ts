@@ -14,6 +14,12 @@ interface ActionResult {
   error?: string;
 }
 
+/**
+ * Crea una categoría o tipo de bien.
+ *
+ * `codigo` es el prefijo usado por PostgreSQL para generar códigos automáticos
+ * de inventario, por ejemplo `COMP-2026-001`.
+ */
 export async function crearCategoria(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -66,6 +72,10 @@ export async function crearCategoria(
   }
 }
 
+/**
+ * Actualiza una categoría existente y revalida inventario porque el label del
+ * tipo aparece en listados y formularios de bienes.
+ */
 export async function actualizarCategoria(
   formData: FormData,
 ): Promise<ActionResult> {

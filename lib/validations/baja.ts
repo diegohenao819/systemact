@@ -5,7 +5,13 @@ const motivoEnum = z.enum(MOTIVOS_BAJA, {
   message: "Seleccione un motivo válido",
 });
 
-// Schema para uso en cliente (React Hook Form, valores ya tipados)
+/**
+ * Schema para el formulario cliente de bajas.
+ *
+ * Solo valida forma y longitud. La autorización de administrador, el estado
+ * ACTIVO del bien y la transacción irreversible se validan en Server Action y
+ * RPC.
+ */
 export const createBajaSchema = z.object({
   id_bien: z.number().int().positive("Seleccione un bien"),
   motivo: motivoEnum,
@@ -16,7 +22,10 @@ export const createBajaSchema = z.object({
     .or(z.literal("")),
 });
 
-// Schema para Server Actions (recibe strings de FormData)
+/**
+ * Schema para Server Actions. `id_bien` se coerciona porque llega desde
+ * `FormData`; el motivo reutiliza el enum compartido con la UI y la BD.
+ */
 export const createBajaActionSchema = z.object({
   id_bien: z.coerce.number().int().positive("Seleccione un bien"),
   motivo: motivoEnum,

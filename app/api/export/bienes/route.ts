@@ -36,6 +36,13 @@ interface BienRow {
     | null;
 }
 
+/**
+ * Exporta el inventario activo a Excel.
+ *
+ * Es un Route Handler de solo lectura porque debe devolver un archivo binario.
+ * La autenticación se valida con el usuario actual y la consulta queda sujeta a
+ * las políticas RLS de Supabase.
+ */
 export async function GET() {
   const supabase = await createClient();
 
@@ -82,7 +89,7 @@ export async function GET() {
     properties: { defaultColWidth: 18 },
   });
 
-  ws.mergeCells("A1:K1");
+  ws.mergeCells("A1:M1");
   ws.getCell("A1").value = "INVENTARIO DE BIENES — SYSTEMACT";
   ws.getCell("A1").font = { bold: true, size: 14 };
   ws.getCell("A1").alignment = { horizontal: "center" };

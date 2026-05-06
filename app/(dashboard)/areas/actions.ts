@@ -11,6 +11,12 @@ interface ActionResult {
   error?: string;
 }
 
+/**
+ * Crea una nueva área del catálogo.
+ *
+ * Las áreas son administradas solo por `ADMINISTRADOR` y se usan como
+ * referencia de ubicación en bienes y transferencias.
+ */
 export async function crearArea(formData: FormData): Promise<ActionResult> {
   try {
     const ctx = await getAuthContext();
@@ -47,6 +53,9 @@ export async function crearArea(formData: FormData): Promise<ActionResult> {
   }
 }
 
+/**
+ * Actualiza el nombre o estado de un área existente.
+ */
 export async function actualizarArea(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -91,6 +100,9 @@ export async function actualizarArea(
   }
 }
 
+/**
+ * Activa o inactiva un área sin eliminarla físicamente.
+ */
 export async function toggleEstadoArea(
   id_area: number,
   nuevoEstado: "ACTIVO" | "INACTIVO",

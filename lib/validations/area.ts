@@ -3,6 +3,7 @@ import { z } from "zod";
 export const createAreaSchema = z.object({
   nombre_area: z
     .string()
+    .trim()
     .min(1, "El nombre del área es obligatorio")
     .max(100, "Máximo 100 caracteres"),
   estado: z.enum(["ACTIVO", "INACTIVO"]),

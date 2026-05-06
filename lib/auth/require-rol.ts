@@ -3,11 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { ROLES, type Rol } from "@/lib/constants";
 
 export interface AuthContext {
+  /** UUID del usuario autenticado en `auth.users` y `profiles`. */
   userId: string;
+  /** Email principal de Supabase Auth. Puede venir vacío si el proveedor no lo entrega. */
   email: string;
+  /** Rol de negocio usado para UI, Server Actions, RPCs y RLS. */
   rol: Rol;
   nombre: string;
   apellido: string;
+  /** Los perfiles inactivos se tratan como no autenticados. */
   activo: boolean;
 }
 
