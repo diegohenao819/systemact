@@ -1,0 +1,68 @@
+--- TABLE 1: 5 rows x 2 cols
+Versión | 1.0
+Fecha | Mayo de 2026
+Autor | Diego Alejandro Henao Henao
+Stack | Next.js 15 · Supabase · TypeScript
+Despliegue | Vercel + Supabase Cloud
+--- TABLE 2: 18 rows x 3 cols
+Capa | Tecnología | Versión
+Framework | Next.js (App Router) | 15+
+Lenguaje | TypeScript (strict) | 5+
+Runtime | Node.js | 20+
+UI | React | 19
+Estilos | Tailwind CSS + shadcn/ui | 3.4 / latest
+Iconos | lucide-react | —
+Formularios | React Hook Form + Zod | 7 / 4
+--- TABLE 3: 10 rows x 2 cols
+Tabla | Función
+profiles | Extiende auth.users con datos de la persona y rol.
+sedes | Catálogo de sedes físicas.
+areas | Catálogo de áreas organizacionales.
+caracteristicas | Tipos de bien con prefijo (genera el código automático).
+bienes | Entidad principal — los activos físicos.
+transferencias | Snapshot de cada cambio de ubicación.
+bajas | Registro irreversible de salidas de inventario.
+--- TABLE 4: 14 rows x 3 cols
+Función | Tipo | Propósito
+handle_new_user | trigger | Crea profiles automáticamente al registrar usuario.
+handle_updated_at | trigger | Mantiene updated_at en bienes y profiles.
+generar_codigo_bien | helper | Calcula correlativo por prefijo y año.
+get_my_rol / get_my_sede | helper | Evita recursividad en políticas RLS.
+current_user_rol | helper | Permite al cliente consultar su propio rol.
+require_rol_escritura | guard | Excepción si el caller no es ADMIN/ESTANDAR activo.
+require_rol_admin | guard | Excepción si el caller no es ADMIN activo.
+--- TABLE 5: 4 rows x 6 cols
+Rol | Lectura | Escritura inv. | Transfer. | Bajas | Catálogos / Usuarios
+ADMINISTRADOR | Todo | Sí | Sí | Sí | Sí
+ESTANDAR | Todo | Sí | Sí | No | No
+CONSULTOR | Todo | No | No | No | No
+--- TABLE 6: 12 rows x 3 cols
+Ruta | Módulo | Acceso
+/ | Portada pública | público
+/auth/* | Autenticación | público
+/inicio | Panel con KPIs, timeline y gráfico por sede | todos
+/bienes | Listado, alta, edición, detalle y filtros | lectura: todos · escritura: ADMIN/ESTANDAR
+/sedes /areas /categorias | CRUD de catálogos | lectura: todos · escritura: ADMIN
+/transferencias | Cambios de ubicación entre sedes/áreas/responsables | lectura: todos · escritura: ADMIN/ESTANDAR
+/bajas | Salida de inventario con confirmación doble | ADMIN
+--- TABLE 7: 4 rows x 3 cols
+Método | Endpoint | Devuelve
+GET | /api/export/bienes | .xlsx con todos los bienes (filtros vía query string).
+GET | /api/export/inventario-persona | .xlsx con inventario por responsable.
+GET | /api/export/historial?id_bien=N | .xlsx con la trazabilidad de un bien.
+--- TABLE 8: 10 rows x 3 cols
+Elemento | Convención | Ejemplo
+Archivos / carpetas | kebab-case | bien-form.tsx
+Componentes React | PascalCase | BienForm
+Hooks | camelCase con use | useBienes
+Variables / funciones | camelCase | valorTotal
+Tipos / interfaces | PascalCase | CreateBienInput
+Constantes | UPPER_SNAKE_CASE | ESTADOS_BIEN
+Tablas BD | snake_case plural | bienes
+--- TABLE 9: 6 rows x 2 cols
+Necesidad | Dónde tocar
+Nuevo módulo | app/(dashboard)/<nuevo>/ + entry en NAV_GROUPS (lib/constants.ts).
+Nueva validación | lib/validations/<entidad>.ts (Zod).
+Nueva regla de BD | Nueva migración en supabase/migrations/ + RPC si modifica datos.
+Nuevo reporte Excel | app/api/export/<reporte>/route.ts + helper en lib/export/excel.ts.
+Nuevo rol | CHECK constraint en profiles.rol, RPCs require_rol_*, ROLES en constants.ts y políticas RLS.

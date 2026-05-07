@@ -1,6 +1,6 @@
 # SYSTEMACT
 
-Sistema de gestión de inventario de activos físicos para [Conviventia](https://conviventia.org). Construido con Next.js 15, Supabase y TypeScript como parte de la práctica de Ingeniería Informática (UTP, 2026).
+Sistema de gestión de inventario de activos físicos para [Conviventia](https://conviventia.org). Construido con Next.js 15, Supabase y TypeScript como parte de la práctica de Ingeniería Informática (UNIR, 2026).
 
 ## Características
 
@@ -44,12 +44,14 @@ Encuentras estos valores en [tu proyecto Supabase → Settings → API](https://
 Necesitas el [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started). Después:
 
 **Opción A — proyecto local con Docker:**
+
 ```bash
 supabase start              # arranca Postgres, Auth, Studio en local
 supabase db reset           # aplica el esquema + carga seed.sql
 ```
 
 **Opción B — proyecto en Supabase Cloud:**
+
 ```bash
 supabase link --project-ref <tu-ref>
 supabase db push                        # crea todas las tablas, funciones, RLS
@@ -141,4 +143,8 @@ Sin credenciales, Playwright omite los flujos autenticados y solo valida que las
 
 ## Licencia
 
-Por definir.
+Apache License 2.0.
+
+SYSTEMACT se propone bajo la licencia Apache License 2.0, una licencia de código abierto permisiva que permite el uso, modificación y distribución del software, siempre que se conserve la atribución correspondiente al autor original, el aviso de copyright y los términos de la licencia. Esta licencia fue seleccionada porque facilita la reutilización del proyecto, manteniendo el reconocimiento de autoría y ofreciendo un marco legal claro para futuras mejoras o adaptaciones.
+
+Copyright 2026 Diego Henao
