@@ -9,6 +9,7 @@ import {
   History,
   BarChart3,
   Tag,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,6 +41,21 @@ export const MOTIVOS_BAJA = [
   "OTRO",
 ] as const;
 
+export const ESTADOS_SOLICITUD_TRANSFERENCIA = {
+  PENDIENTE_ENTREGA: "PENDIENTE_ENTREGA",
+  PENDIENTE_RECEPCION: "PENDIENTE_RECEPCION",
+  APROBADA: "APROBADA",
+  RECHAZADA: "RECHAZADA",
+  CANCELADA: "CANCELADA",
+} as const;
+
+export const ESTADOS_SOLICITUD_BAJA = {
+  PENDIENTE_RESPONSABLE: "PENDIENTE_RESPONSABLE",
+  APROBADA: "APROBADA",
+  RECHAZADA: "RECHAZADA",
+  CANCELADA: "CANCELADA",
+} as const;
+
 // Configuración declarativa del sidebar. El layout filtra cada item según rol.
 export interface NavItem {
   label: string;
@@ -55,6 +71,7 @@ export interface NavGroup {
 
 const ALL_ROLES: Rol[] = [ROLES.ADMINISTRADOR, ROLES.ESTANDAR, ROLES.CONSULTOR];
 const ADMIN_ONLY: Rol[] = [ROLES.ADMINISTRADOR];
+const WRITE_ROLES: Rol[] = [ROLES.ADMINISTRADOR, ROLES.ESTANDAR];
 
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -107,10 +124,16 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: ALL_ROLES,
       },
       {
+        label: "Aprobaciones",
+        href: "/aprobaciones",
+        icon: ClipboardCheck,
+        roles: WRITE_ROLES,
+      },
+      {
         label: "Bajas",
         href: "/bajas",
         icon: PackageMinus,
-        roles: ADMIN_ONLY,
+        roles: WRITE_ROLES,
       },
       {
         label: "Historial",

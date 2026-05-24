@@ -4,14 +4,16 @@ import { createBienActionSchema } from "@/lib/validations/bien";
 import { createCategoriaActionSchema } from "@/lib/validations/categoria";
 import { createTransferenciaActionSchema } from "@/lib/validations/transferencia";
 
+const RESPONSABLE_ID = "11111111-1111-4111-8111-111111111111";
+const RESPONSABLE_DESTINO_ID = "22222222-2222-4222-8222-222222222222";
+
 describe("validaciones de bienes", () => {
   const baseBien = {
     nombre: "Portatil administrativo",
     id_caracteristica: "2",
     id_sede: "1",
     id_area: "3",
-    id_responsable: "",
-    responsable_texto: "Responsable externo",
+    id_responsable: RESPONSABLE_ID,
     serial: "SN-001",
     placa: "PL-001",
     cantidad: "2",
@@ -46,6 +48,22 @@ describe("validaciones de bienes", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("requiere un responsable registrado en el sistema", () => {
+    expect(
+      createBienActionSchema.safeParse({
+        ...baseBien,
+        id_responsable: "",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      createBienActionSchema.safeParse({
+        ...baseBien,
+        id_responsable: "Responsable externo",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("validaciones de transferencias", () => {
@@ -55,8 +73,7 @@ describe("validaciones de transferencias", () => {
         id_bien: "10",
         sede_destino: "2",
         area_destino: "4",
-        responsable_destino: "",
-        responsable_destino_texto: "Desconocido",
+        responsable_destino: RESPONSABLE_DESTINO_ID,
         motivo: "Reubicacion por cambio de oficina",
       }).success,
     ).toBe(true);
@@ -66,9 +83,20 @@ describe("validaciones de transferencias", () => {
         id_bien: "0",
         sede_destino: "2",
         area_destino: "4",
-        responsable_destino: "",
-        responsable_destino_texto: "",
+        responsable_destino: RESPONSABLE_DESTINO_ID,
         motivo: "ok",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requiere responsable destino registrado", () => {
+    expect(
+      createTransferenciaActionSchema.safeParse({
+        id_bien: "10",
+        sede_destino: "2",
+        area_destino: "4",
+        responsable_destino: "",
+        motivo: "Reubicacion por cambio de oficina",
       }).success,
     ).toBe(false);
   });

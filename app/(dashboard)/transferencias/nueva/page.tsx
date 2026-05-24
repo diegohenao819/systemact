@@ -3,6 +3,10 @@ import { Suspense } from "react";
 import { TransferenciaForm } from "../transferencia-form";
 import { requireRol, WRITE_ROLES } from "@/lib/auth/require-rol";
 
+interface BienPendiente {
+  id_bien: number;
+}
+
 async function NuevaTransferenciaContent({
   searchParams,
 }: {
@@ -14,11 +18,12 @@ async function NuevaTransferenciaContent({
   const params = await searchParams;
   const bienIdParam = params.bien ? Number(params.bien) : null;
 
-  const [bienesRes, sedesRes, areasRes, perfilesRes] = await Promise.all([
-    supabase
-      .from("bienes")
-      .select(
-        `
+  const [bienesRes, sedesRes, areasRes, perfilesRes, pendientesRes] =
+    await Promise.all([
+      supabase
+        .from("bienes")
+        .select(
+          `
         id_bien,
         codigo_generado,
         nombre,
@@ -30,32 +35,45 @@ async function NuevaTransferenciaContent({
         areas ( nombre_area ),
         profiles:id_responsable ( nombre, apellido )
         `,
-      )
-      .eq("estado", "ACTIVO")
-      .order("codigo_generado"),
-    supabase
-      .from("sedes")
-      .select("id_sede, nombre_sede")
-      .order("nombre_sede"),
-    supabase
-      .from("areas")
-      .select("id_area, nombre_area")
-      .eq("estado", "ACTIVO")
-      .order("nombre_area"),
-    supabase
-      .from("profiles")
-      .select("id, nombre, apellido")
-      .eq("activo", true)
-      .order("nombre"),
-  ]);
+        )
+        .eq("estado", "ACTIVO")
+        .order("codigo_generado"),
+      supabase
+        .from("sedes")
+        .select("id_sede, nombre_sede")
+        .order("nombre_sede"),
+      supabase
+        .from("areas")
+        .select("id_area, nombre_area")
+        .eq("estado", "ACTIVO")
+        .order("nombre_area"),
+      supabase
+        .from("profiles")
+        .select("id, nombre, apellido")
+        .eq("activo", true)
+        .order("nombre"),
+      supabase.rpc("listar_bienes_con_solicitud_pendiente"),
+    ]);
+
+  const bienesBloqueados = new Set(
+    ((pendientesRes.data ?? []) as BienPendiente[]).map(
+      (item) => item.id_bien,
+    ),
+  );
+
+  const bienesDisponibles = (bienesRes.data ?? []).filter(
+    (bien) => bien.id_responsable && !bienesBloqueados.has(bien.id_bien),
+  );
 
   return (
     <TransferenciaForm
-      bienes={bienesRes.data ?? []}
+      bienes={bienesDisponibles}
       sedes={sedesRes.data ?? []}
       areas={areasRes.data ?? []}
       responsables={perfilesRes.data ?? []}
-      bienInicialId={bienIdParam && !Number.isNaN(bienIdParam) ? bienIdParam : null}
+      bienInicialId={
+        bienIdParam && !Number.isNaN(bienIdParam) ? bienIdParam : null
+      }
     />
   );
 }

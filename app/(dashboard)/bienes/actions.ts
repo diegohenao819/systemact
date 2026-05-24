@@ -37,7 +37,6 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       id_sede: formData.get("id_sede"),
       id_area: formData.get("id_area"),
       id_responsable: formData.get("id_responsable"),
-      responsable_texto: formData.get("responsable_texto"),
       serial: formData.get("serial"),
       placa: formData.get("placa"),
       cantidad: formData.get("cantidad"),
@@ -54,11 +53,6 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
       return { success: false, error: firstError };
     }
 
-    const tieneResponsableId =
-      parsed.data.id_responsable && parsed.data.id_responsable.length > 0;
-    const tieneResponsableTexto =
-      parsed.data.responsable_texto && parsed.data.responsable_texto.length > 0;
-
     const { error: createError } = await supabase.rpc(
       "crear_bien_con_auditoria",
       {
@@ -66,10 +60,8 @@ export async function crearBien(formData: FormData): Promise<ActionResult> {
         p_id_caracteristica: parsed.data.id_caracteristica,
         p_id_sede: parsed.data.id_sede,
         p_id_area: parsed.data.id_area,
-        p_id_responsable: tieneResponsableId ? parsed.data.id_responsable : null,
-        p_responsable_texto: tieneResponsableTexto
-          ? parsed.data.responsable_texto
-          : null,
+        p_id_responsable: parsed.data.id_responsable,
+        p_responsable_texto: null,
         p_serial: parsed.data.serial || null,
         p_placa: parsed.data.placa || null,
         p_cantidad: parsed.data.cantidad,
@@ -127,7 +119,6 @@ export async function actualizarBien(
       id_sede: formData.get("id_sede"),
       id_area: formData.get("id_area"),
       id_responsable: formData.get("id_responsable"),
-      responsable_texto: formData.get("responsable_texto"),
       serial: formData.get("serial"),
       placa: formData.get("placa"),
       cantidad: formData.get("cantidad"),
@@ -146,21 +137,14 @@ export async function actualizarBien(
 
     const { id_bien, ...updateData } = parsed.data;
 
-    const tieneResponsableId =
-      updateData.id_responsable && updateData.id_responsable.length > 0;
-    const tieneResponsableTexto =
-      updateData.responsable_texto && updateData.responsable_texto.length > 0;
-
     const { error } = await supabase.rpc("actualizar_bien_con_auditoria", {
       p_id_bien: id_bien,
       p_nombre: updateData.nombre,
       p_id_caracteristica: updateData.id_caracteristica,
       p_id_sede: updateData.id_sede,
       p_id_area: updateData.id_area,
-      p_id_responsable: tieneResponsableId ? updateData.id_responsable : null,
-      p_responsable_texto: tieneResponsableTexto
-        ? updateData.responsable_texto
-        : null,
+      p_id_responsable: updateData.id_responsable,
+      p_responsable_texto: null,
       p_serial: updateData.serial || null,
       p_placa: updateData.placa || null,
       p_cantidad: updateData.cantidad,

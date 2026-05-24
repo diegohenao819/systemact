@@ -122,8 +122,13 @@ export function BajaForm({ bienes, bienInicialId }: BajaFormProps) {
         setConfirmOpen(false);
         return;
       }
-      toast.success("Baja registrada");
-      router.push("/bajas");
+      if (result.tipo === "solicitud") {
+        toast.success("Solicitud de baja enviada al responsable");
+        router.push("/aprobaciones");
+      } else {
+        toast.success("Baja registrada");
+        router.push("/bajas");
+      }
     } finally {
       setSubmitting(false);
     }

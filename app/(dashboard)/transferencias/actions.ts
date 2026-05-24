@@ -8,7 +8,9 @@ import { createTransferenciaActionSchema } from "@/lib/validations/transferencia
 interface ActionResult {
   success: boolean;
   error?: string;
+  tipo?: "transferencia" | "solicitud";
   id_transferencia?: number;
+  id_solicitud_transferencia?: number;
 }
 
 /**
@@ -37,7 +39,6 @@ export async function crearTransferencia(
       sede_destino: formData.get("sede_destino"),
       area_destino: formData.get("area_destino"),
       responsable_destino: formData.get("responsable_destino"),
-      responsable_destino_texto: formData.get("responsable_destino_texto"),
       motivo: formData.get("motivo"),
     };
 
@@ -47,24 +48,53 @@ export async function crearTransferencia(
       return { success: false, error: firstError };
     }
 
-    const responsableDestino =
-      parsed.data.responsable_destino && parsed.data.responsable_destino.length > 0
-        ? parsed.data.responsable_destino
-        : null;
+    const { data: bienActual, error: bienError } = await supabase
+      .from("bienes")
+      .select("id_sede")
+      .eq("id_bien", parsed.data.id_bien)
+      .single();
 
-    const responsableDestinoTexto =
-      !responsableDestino &&
-      parsed.data.responsable_destino_texto &&
-      parsed.data.responsable_destino_texto.length > 0
-        ? parsed.data.responsable_destino_texto
-        : null;
+    if (bienError || !bienActual) {
+      return { success: false, error: "No se encontró el bien seleccionado" };
+    }
+
+    if (bienActual.id_sede !== parsed.data.sede_destino) {
+      const { data, error } = await supabase.rpc(
+        "crear_solicitud_transferencia",
+        {
+          p_id_bien: parsed.data.id_bien,
+          p_sede_destino: parsed.data.sede_destino,
+          p_area_destino: parsed.data.area_destino,
+          p_responsable_destino: parsed.data.responsable_destino,
+          p_motivo: parsed.data.motivo,
+          p_usuario_solicitante: ctx.userId,
+        },
+      );
+
+      if (error) {
+        console.error("Error al crear solicitud de transferencia", error);
+        return {
+          success: false,
+          error: "No se pudo crear la solicitud de transferencia",
+        };
+      }
+
+      revalidatePath("/aprobaciones");
+      revalidatePath("/bienes");
+      revalidatePath("/inicio");
+      return {
+        success: true,
+        tipo: "solicitud",
+        id_solicitud_transferencia: data as number,
+      };
+    }
 
     const { data, error } = await supabase.rpc("crear_transferencia", {
       p_id_bien: parsed.data.id_bien,
       p_sede_destino: parsed.data.sede_destino,
       p_area_destino: parsed.data.area_destino,
-      p_responsable_destino: responsableDestino,
-      p_responsable_destino_texto: responsableDestinoTexto,
+      p_responsable_destino: parsed.data.responsable_destino,
+      p_responsable_destino_texto: null,
       p_motivo: parsed.data.motivo,
       p_usuario_registro: ctx.userId,
     });
@@ -80,7 +110,11 @@ export async function crearTransferencia(
     revalidatePath("/transferencias");
     revalidatePath("/bienes");
     revalidatePath("/inicio");
-    return { success: true, id_transferencia: data as number };
+    return {
+      success: true,
+      tipo: "transferencia",
+      id_transferencia: data as number,
+    };
   } catch (error) {
     console.error("Error inesperado al crear la transferencia", error);
     return {

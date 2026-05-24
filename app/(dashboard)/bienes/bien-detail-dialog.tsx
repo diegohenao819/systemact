@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ImageOff, PackageMinus, PenLine } from "lucide-react";
+import { ImageOff, LockKeyhole, PackageMinus, PenLine } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -34,6 +34,9 @@ interface BienDetalle {
     | { nombre: string; apellido: string }
     | { nombre: string; apellido: string }[]
     | null;
+  solicitud_pendiente?: boolean;
+  tipo_solicitud_pendiente?: string;
+  estado_solicitud_pendiente?: string;
 }
 
 function unwrap<T>(value: T | T[] | null | undefined): T | null {
@@ -145,6 +148,15 @@ export function BienDetailDialog({
             >
               {bien.estado}
             </Badge>
+            {bien.solicitud_pendiente && (
+              <Badge
+                variant="outline"
+                className="gap-1 border-amber-300 bg-amber-50 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200"
+              >
+                <LockKeyhole className="h-3 w-3" />
+                Solicitud pendiente
+              </Badge>
+            )}
             <span className="text-sm text-muted-foreground">
               {bien.cantidad} {bien.cantidad === 1 ? "unidad" : "unidades"}
             </span>
@@ -193,7 +205,7 @@ export function BienDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
-          {canDarDeBaja && bien.estado === "ACTIVO" && (
+          {canDarDeBaja && bien.estado === "ACTIVO" && !bien.solicitud_pendiente && (
             <Button variant="destructive" asChild>
               <Link href={`/bajas/nueva?bien=${bien.id_bien}`}>
                 <PackageMinus className="h-4 w-4 mr-2" />
@@ -201,12 +213,18 @@ export function BienDetailDialog({
               </Link>
             </Button>
           )}
-          {canWrite && (
+          {canWrite && !bien.solicitud_pendiente && (
             <Button asChild>
               <Link href={`/bienes/${bien.id_bien}`}>
                 <PenLine className="h-4 w-4 mr-2" />
                 Editar
               </Link>
+            </Button>
+          )}
+          {bien.solicitud_pendiente && (
+            <Button variant="outline" disabled>
+              <LockKeyhole className="h-4 w-4 mr-2" />
+              Transferencia en proceso
             </Button>
           )}
         </DialogFooter>

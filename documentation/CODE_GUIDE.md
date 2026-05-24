@@ -34,6 +34,7 @@ flowchart LR
 Contiene rutas de Next.js App Router.
 
 - `app/(dashboard)/`: rutas protegidas para usuarios autenticados.
+- `app/(dashboard)/aprobaciones`: panel para solicitudes de transferencia entre sedes y bajas solicitadas por terceros.
 - `app/auth/`: rutas públicas de autenticación.
 - `app/api/export/`: Route Handlers de solo lectura para descargar archivos
   Excel. Las mutaciones no van aquí; se hacen con Server Actions.
@@ -119,6 +120,18 @@ const { error } = await supabase.rpc("crear_bien_con_auditoria", {
 });
 ```
 
+## Flujos de aprobación
+
+SYSTEMACT distingue operaciones directas y operaciones que requieren aprobación:
+
+- **Responsable obligatorio**: los nuevos bienes y transferencias deben usar `id_responsable` de `profiles`. El texto libre de responsable queda como dato legacy.
+- **Transferencia misma sede**: se ejecuta inmediatamente con `crear_transferencia`.
+- **Transferencia entre sedes**: `crear_solicitud_transferencia` crea una solicitud pendiente de aceptación. El solicitante puede cancelarla; el responsable destino puede aceptarla o rechazarla. Al aceptar, `aprobar_recepcion_transferencia` ejecuta la transferencia real.
+- **Baja por responsable**: `crear_baja` ejecuta la baja directa.
+- **Baja por tercero**: `crear_solicitud_baja` deja la solicitud pendiente; el responsable actual decide con `aprobar_solicitud_baja` o `rechazar_solicitud_baja`.
+
+Mientras existe una solicitud pendiente, `bien_tiene_solicitud_pendiente(id_bien)` bloquea edición, transferencias directas y bajas. La UI muestra el bien como "Solicitud pendiente" o "Transferencia en proceso", pero la protección real está en los RPCs.
+
 ## Autorización
 
 La seguridad no depende de una sola capa:
@@ -129,6 +142,8 @@ La seguridad no depende de una sola capa:
 - Los RPCs llaman guards de PostgreSQL como `require_rol_escritura()` o
   `require_rol_admin()`.
 - RLS permanece activa sobre las tablas públicas.
+- En `/aprobaciones`, `ADMINISTRADOR` ve todas las solicitudes; `ESTANDAR`
+  solo ve las solicitudes donde participa.
 
 Si agregas un módulo que modifica datos, agrega validación de rol en la Server
 Action y también dentro del RPC. La validación en React ayuda a la UX; la
@@ -163,7 +178,7 @@ archivo descargable. Todos reutilizan `lib/export/excel.ts` para:
 
 ## Cómo agregar una feature
 
-1. Define o confirma el modelo de datos en la migración baseline.
+1. Define o confirma el modelo de datos en una migración.
 2. Si modifica datos, crea un RPC con guard de rol y auditoría si aplica.
 3. Agrega un schema Zod en `lib/validations/`.
 4. Crea la Server Action en el módulo de `app/(dashboard)/`.

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,9 +18,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
-  PenLine,
   Send,
-  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,8 +26,6 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { crearTransferencia } from "./actions";
-
-const DESCONOCIDO_SENTINEL = "__desconocido__";
 
 interface Sede {
   id_sede: number;
@@ -85,9 +80,6 @@ export function TransferenciaForm({
   bienInicialId,
 }: TransferenciaFormProps) {
   const [loading, setLoading] = useState(false);
-  const [modoResponsable, setModoResponsable] = useState<"lista" | "texto">(
-    "lista",
-  );
   const router = useRouter();
 
   const form = useForm<CreateTransferenciaInput>({
@@ -97,7 +89,6 @@ export function TransferenciaForm({
       sede_destino: 0,
       area_destino: 0,
       responsable_destino: "",
-      responsable_destino_texto: "",
       motivo: "",
     },
   });
@@ -106,7 +97,6 @@ export function TransferenciaForm({
   const sedeDestino = form.watch("sede_destino");
   const areaDestino = form.watch("area_destino");
   const responsableDestino = form.watch("responsable_destino");
-  const responsableDestinoTexto = form.watch("responsable_destino_texto");
 
   const bienSeleccionado = useMemo(
     () => bienes.find((b) => b.id_bien === Number(idBien)),
@@ -134,65 +124,21 @@ export function TransferenciaForm({
     if (!sedeDestino || !areaDestino) return false;
 
     const respDestinoUuid = responsableDestino || null;
-    const respDestinoTexto =
-      !respDestinoUuid && responsableDestinoTexto
-        ? responsableDestinoTexto
-        : null;
 
     const respOrigenUuid = origen.id_responsable || null;
-    const respOrigenTexto = respOrigenUuid ? null : origen.responsable_texto;
 
     return (
       Number(sedeDestino) === origen.id_sede &&
       Number(areaDestino) === (origen.id_area ?? -1) &&
-      respDestinoUuid === respOrigenUuid &&
-      (respDestinoTexto ?? "") === (respOrigenTexto ?? "")
+      respDestinoUuid === respOrigenUuid
     );
-  }, [
-    origen,
-    sedeDestino,
-    areaDestino,
-    responsableDestino,
-    responsableDestinoTexto,
-  ]);
-
-  const selectValue = useMemo(() => {
-    if (responsableDestino) return responsableDestino;
-    if (responsableDestinoTexto === "Desconocido") return DESCONOCIDO_SENTINEL;
-    return undefined;
-  }, [responsableDestino, responsableDestinoTexto]);
-
-  const handleListSelect = (val: string) => {
-    if (val === DESCONOCIDO_SENTINEL) {
-      form.setValue("responsable_destino", "");
-      form.setValue("responsable_destino_texto", "Desconocido");
-    } else {
-      form.setValue("responsable_destino", val);
-      form.setValue("responsable_destino_texto", "");
-    }
-  };
-
-  const toggleModoResponsable = () => {
-    if (modoResponsable === "lista") {
-      form.setValue("responsable_destino", "");
-      // Si veníamos con "Desconocido" seleccionado, limpiamos para que el
-      // usuario empiece el input vacío.
-      if (responsableDestinoTexto === "Desconocido") {
-        form.setValue("responsable_destino_texto", "");
-      }
-      setModoResponsable("texto");
-    } else {
-      form.setValue("responsable_destino_texto", "");
-      setModoResponsable("lista");
-    }
-  };
+  }, [origen, sedeDestino, areaDestino, responsableDestino]);
 
   const destinoResponsableLabel = (() => {
     if (responsableDestino) {
       const r = responsables.find((rr) => rr.id === responsableDestino);
       return r ? `${r.nombre} ${r.apellido}` : null;
     }
-    if (responsableDestinoTexto) return responsableDestinoTexto;
     return null;
   })();
 
@@ -208,11 +154,7 @@ export function TransferenciaForm({
     formData.set("id_bien", String(data.id_bien));
     formData.set("sede_destino", String(data.sede_destino));
     formData.set("area_destino", String(data.area_destino));
-    formData.set("responsable_destino", data.responsable_destino ?? "");
-    formData.set(
-      "responsable_destino_texto",
-      data.responsable_destino_texto ?? "",
-    );
+    formData.set("responsable_destino", data.responsable_destino);
     formData.set("motivo", data.motivo);
 
     const result = await crearTransferencia(formData);
@@ -220,8 +162,13 @@ export function TransferenciaForm({
     setLoading(false);
 
     if (result.success) {
-      toast.success("Transferencia registrada");
-      router.push("/transferencias");
+      if (result.tipo === "solicitud") {
+        toast.success("Solicitud enviada para aprobación");
+        router.push("/aprobaciones");
+      } else {
+        toast.success("Transferencia registrada");
+        router.push("/transferencias");
+      }
     } else {
       toast.error(result.error ?? "Ocurrió un error");
     }
@@ -386,57 +333,36 @@ export function TransferenciaForm({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <Label>Responsable destino (opcional)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-muted-foreground"
-                  onClick={toggleModoResponsable}
-                >
-                  {modoResponsable === "lista" ? (
-                    <>
-                      <PenLine className="h-3 w-3" />
-                      Escribir nombre
-                    </>
-                  ) : (
-                    <>
-                      <UserRound className="h-3 w-3" />
-                      Elegir de la lista
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {modoResponsable === "lista" ? (
-                <Select value={selectValue} onValueChange={handleListSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar responsable (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DESCONOCIDO_SENTINEL}>
-                      Desconocido
+              <Label>Responsable destino *</Label>
+              <Select
+                value={responsableDestino || undefined}
+                onValueChange={(val) =>
+                  form.setValue("responsable_destino", val, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  {responsables.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.nombre} {r.apellido}
                     </SelectItem>
-                    {responsables.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nombre} {r.apellido}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  placeholder="Escribir nombre del responsable"
-                  {...form.register("responsable_destino_texto")}
-                />
-              )}
+                  ))}
+                </SelectContent>
+              </Select>
 
               <p className="text-xs text-muted-foreground">
-                {modoResponsable === "lista"
-                  ? "Selecciona un usuario del sistema, usa 'Desconocido' o cambia a escritura libre."
-                  : "Escribe el nombre de la persona responsable."}
+                Selecciona un usuario activo del sistema.
               </p>
+              {form.formState.errors.responsable_destino && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.responsable_destino.message}
+                </p>
+              )}
             </div>
           </div>
 

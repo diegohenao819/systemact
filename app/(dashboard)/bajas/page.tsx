@@ -60,7 +60,7 @@ function BajasLoading() {
 
 export default async function BajasPage() {
   const ctx = await getAuthContext();
-  const canManage = ctx.rol === ROLES.ADMINISTRADOR;
+  const canManage = ctx.rol === ROLES.ADMINISTRADOR || ctx.rol === ROLES.ESTANDAR;
 
   return (
     <div className="space-y-6">

@@ -17,9 +17,7 @@ import {
   ArrowLeft,
   ImagePlus,
   Loader2,
-  PenLine,
   Save,
-  UserRound,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -108,11 +106,6 @@ export function BienForm({
   const router = useRouter();
   const isEditing = !!bien;
 
-  // Determinar modo inicial: si tiene responsable_texto, empieza en modo texto
-  const [modoResponsable, setModoResponsable] = useState<"lista" | "texto">(
-    bien?.responsable_texto ? "texto" : "lista",
-  );
-
   const form = useForm<CreateBienInput>({
     resolver: zodResolver(createBienSchema),
     defaultValues: {
@@ -121,7 +114,6 @@ export function BienForm({
       id_sede: bien?.id_sede ?? 0,
       id_area: bien?.id_area ?? 0,
       id_responsable: bien?.id_responsable ?? "",
-      responsable_texto: bien?.responsable_texto ?? "",
       serial: bien?.serial ?? "",
       placa: bien?.placa ?? "",
       cantidad: bien?.cantidad ?? 1,
@@ -223,18 +215,6 @@ export function BienForm({
     }
   };
 
-  const toggleModoResponsable = () => {
-    if (modoResponsable === "lista") {
-      // Cambiar a texto: limpiar selección de lista
-      form.setValue("id_responsable", "");
-      setModoResponsable("texto");
-    } else {
-      // Cambiar a lista: limpiar texto
-      form.setValue("responsable_texto", "");
-      setModoResponsable("lista");
-    }
-  };
-
   const onSubmit = async (data: CreateBienInput) => {
     setLoading(true);
 
@@ -243,8 +223,7 @@ export function BienForm({
     formData.set("id_caracteristica", String(data.id_caracteristica));
     formData.set("id_sede", String(data.id_sede));
     formData.set("id_area", String(data.id_area));
-    formData.set("id_responsable", data.id_responsable ?? "");
-    formData.set("responsable_texto", data.responsable_texto ?? "");
+    formData.set("id_responsable", data.id_responsable);
     formData.set("serial", data.serial ?? "");
     formData.set("placa", data.placa ?? "");
     formData.set("cantidad", String(data.cantidad));
@@ -449,59 +428,37 @@ export function BienForm({
               )}
             </div>
 
-            {/* ── Responsable con toggle ── */}
             <div className="space-y-2 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <Label>Responsable</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 text-muted-foreground"
-                  onClick={toggleModoResponsable}
-                >
-                  {modoResponsable === "lista" ? (
-                    <>
-                      <PenLine className="h-3 w-3" />
-                      Escribir nombre
-                    </>
-                  ) : (
-                    <>
-                      <UserRound className="h-3 w-3" />
-                      Elegir de la lista
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {modoResponsable === "lista" ? (
-                <Select
-                  value={form.watch("id_responsable") || undefined}
-                  onValueChange={(val) => form.setValue("id_responsable", val)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar responsable (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {responsables.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nombre} {r.apellido}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  placeholder="Escribir nombre del responsable"
-                  {...form.register("responsable_texto")}
-                />
-              )}
+              <Label>Responsable *</Label>
+              <Select
+                value={form.watch("id_responsable") || undefined}
+                onValueChange={(val) =>
+                  form.setValue("id_responsable", val, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  {responsables.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.nombre} {r.apellido}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               <p className="text-xs text-muted-foreground">
-                {modoResponsable === "lista"
-                  ? "Selecciona un usuario del sistema o cambia a escritura libre."
-                  : "Escribe el nombre de la persona responsable."}
+                Selecciona un usuario activo del sistema.
               </p>
+              {form.formState.errors.id_responsable && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.id_responsable.message}
+                </p>
+              )}
             </div>
           </div>
         </div>

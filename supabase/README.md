@@ -10,11 +10,12 @@ supabase/
 ├── seed.sql                   # Datos de ejemplo (sedes, áreas, tipos de bien)
 ├── migrations/
 │   ├── 00000000000000_initial_schema.sql   # Esquema completo (tablas, RLS, RPCs, trigger, storage)
+│   ├── 20260523*_*.sql       # Solicitudes/aprobaciones y ajustes posteriores
 │   └── _archive/              # Historial de migraciones incrementales (referencia, no se ejecuta)
 └── README.md                  # Este archivo
 ```
 
-El archivo `00000000000000_initial_schema.sql` contiene **todo** lo necesario para levantar el backend desde cero: 9 tablas, 14 funciones/RPCs, 25 políticas RLS, 1 bucket de Storage con 4 policies, 3 triggers (incluido el de `auth.users → profiles`).
+El archivo `00000000000000_initial_schema.sql` contiene la base inicial del sistema. Las migraciones posteriores agregan el flujo de solicitudes/aprobaciones para transferencias y bajas. Para levantar el backend completo, se aplican todas las migraciones en orden.
 
 ## Arrancar desde cero
 
@@ -66,9 +67,17 @@ Como el primer registro no tiene a quién promoverlo, se hace manualmente:
 
 | Rol            | Lectura                          | Escritura inventario | Bajas | Catálogos (sedes/áreas) | Usuarios |
 |----------------|----------------------------------|----------------------|-------|-------------------------|----------|
-| `ADMINISTRADOR`| Todo                             | ✓                    | ✓     | ✓                       | ✓        |
-| `ESTANDAR`     | Todo                             | ✓                    | ✗     | ✗                       | ✗        |
+| `ADMINISTRADOR`| Todo                             | ✓                    | ✓ / solicita si no es responsable | ✓                       | ✓        |
+| `ESTANDAR`     | Todo                             | ✓                    | ✓ / solicita si no es responsable | ✗                       | ✗        |
 | `CONSULTOR`    | Todo (modo lectura)              | ✗                    | ✗     | ✗                       | ✗        |
+
+### Reglas de solicitudes y bloqueo
+
+- Todo bien debe tener `id_responsable`; `responsable_texto` queda como campo legacy y no se usa en nuevos flujos.
+- Las transferencias dentro de la misma sede se ejecutan inmediatamente con `crear_transferencia`.
+- Las transferencias entre sedes crean `solicitudes_transferencia`. Quien crea la solicitud puede cancelarla; el responsable destino puede aceptar o rechazar. Mientras esté pendiente, `bien_tiene_solicitud_pendiente(id_bien)` bloquea edición, transferencia directa y baja.
+- Las bajas se registran directamente solo si quien las solicita es el responsable actual. Si las solicita otro usuario con rol de escritura, se crea `solicitudes_baja` y el responsable actual aprueba o rechaza.
+- Los usuarios `ESTANDAR` solo ven solicitudes donde participan; `ADMINISTRADOR` ve todas.
 
 Las restricciones se aplican en tres capas:
 1. **RLS** sobre cada tabla (frontera de la BD).
@@ -89,7 +98,7 @@ supabase db reset
 supabase db push
 ```
 
-Los archivos en `_archive/` no se vuelven a ejecutar — son sólo memoria histórica de cómo fue evolucionando el esquema durante el desarrollo inicial.
+Los archivos en `_archive/` no se vuelven a ejecutar — son sólo memoria histórica de cómo fue evolucionando el esquema durante el desarrollo inicial. Las migraciones fuera de `_archive/` sí son parte del esquema actual.
 
 ## Catálogos cargados por el seed
 

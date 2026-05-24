@@ -21,6 +21,7 @@ import {
   ImageOff,
   X,
   Filter,
+  LockKeyhole,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,9 @@ interface BienRow {
     | { nombre: string; apellido: string }
     | { nombre: string; apellido: string }[]
     | null;
+  solicitud_pendiente?: boolean;
+  tipo_solicitud_pendiente?: string;
+  estado_solicitud_pendiente?: string;
 }
 
 interface SedeOpt {
@@ -158,6 +162,15 @@ const columns: ColumnDef<BienRow>[] = [
     cell: ({ row }) => (
       <div>
         <span className="font-medium">{row.getValue("nombre")}</span>
+        {row.original.solicitud_pendiente && (
+          <Badge
+            variant="outline"
+            className="mt-1 flex w-fit items-center gap-1 text-[10px] font-semibold text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-200"
+          >
+            <LockKeyhole className="h-3 w-3" />
+            Solicitud pendiente
+          </Badge>
+        )}
         {row.original.placa && (
           <span className="block text-xs text-muted-foreground">
             Placa: {row.original.placa}
@@ -254,23 +267,39 @@ const columns: ColumnDef<BienRow>[] = [
   {
     id: "acciones",
     header: "",
-    cell: ({ row }) => (
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        asChild
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Link
-          href={`/bienes/${row.original.id_bien}`}
-          aria-label="Editar bien"
-          title="Editar"
+    cell: ({ row }) => {
+      if (row.original.solicitud_pendiente) {
+        return (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            disabled
+            title="Bien bloqueado por solicitud pendiente"
+          >
+            <LockKeyhole className="h-4 w-4" />
+          </Button>
+        );
+      }
+
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          asChild
+          onClick={(e) => e.stopPropagation()}
         >
-          <Eye className="h-4 w-4" />
-        </Link>
-      </Button>
-    ),
+          <Link
+            href={`/bienes/${row.original.id_bien}`}
+            aria-label="Editar bien"
+            title="Editar"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+        </Button>
+      );
+    },
     size: 50,
     enableSorting: false,
   },

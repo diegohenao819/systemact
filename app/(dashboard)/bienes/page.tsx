@@ -7,6 +7,12 @@ import { BienesTable } from "./bienes-table";
 import { getAuthContext } from "@/lib/auth/require-rol";
 import { ROLES } from "@/lib/constants";
 
+interface BienPendiente {
+  id_bien: number;
+  tipo_solicitud: string;
+  estado: string;
+}
+
 async function BienesContent({
   canWrite,
   canDarDeBaja,
@@ -16,11 +22,12 @@ async function BienesContent({
 }) {
   const supabase = await createClient();
 
-  const [bienesRes, sedesRes, areasRes, caractRes] = await Promise.all([
-    supabase
-      .from("bienes")
-      .select(
-        `
+  const [bienesRes, sedesRes, areasRes, caractRes, pendientesRes] =
+    await Promise.all([
+      supabase
+        .from("bienes")
+        .select(
+          `
         id_bien,
         codigo_generado,
         nombre,
@@ -42,20 +49,24 @@ async function BienesContent({
         caracteristicas ( codigo, descripcion ),
         profiles:id_responsable ( nombre, apellido )
       `,
-      )
-      .neq("estado", "DE BAJA")
-      .order("created_at", { ascending: false }),
-    supabase.from("sedes").select("id_sede, nombre_sede").order("nombre_sede"),
-    supabase
-      .from("areas")
-      .select("id_area, nombre_area")
-      .eq("estado", "ACTIVO")
-      .order("nombre_area"),
-    supabase
-      .from("caracteristicas")
-      .select("id_caracteristica, codigo, descripcion")
-      .order("codigo"),
-  ]);
+        )
+        .neq("estado", "DE BAJA")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("sedes")
+        .select("id_sede, nombre_sede")
+        .order("nombre_sede"),
+      supabase
+        .from("areas")
+        .select("id_area, nombre_area")
+        .eq("estado", "ACTIVO")
+        .order("nombre_area"),
+      supabase
+        .from("caracteristicas")
+        .select("id_caracteristica, codigo, descripcion")
+        .order("codigo"),
+      supabase.rpc("listar_bienes_con_solicitud_pendiente"),
+    ]);
 
   if (bienesRes.error) {
     return (
@@ -67,9 +78,25 @@ async function BienesContent({
     );
   }
 
+  const pendientesPorBien = new Map(
+    ((pendientesRes.data ?? []) as BienPendiente[]).map((item) => [
+      item.id_bien,
+      {
+        tipo_solicitud_pendiente: item.tipo_solicitud,
+        estado_solicitud_pendiente: item.estado,
+      },
+    ]),
+  );
+
+  const bienes = (bienesRes.data ?? []).map((bien) => ({
+    ...bien,
+    solicitud_pendiente: pendientesPorBien.has(bien.id_bien),
+    ...pendientesPorBien.get(bien.id_bien),
+  }));
+
   return (
     <BienesTable
-      data={bienesRes.data ?? []}
+      data={bienes}
       sedes={sedesRes.data ?? []}
       areas={areasRes.data ?? []}
       caracteristicas={caractRes.data ?? []}
@@ -106,7 +133,7 @@ export default async function BienesPage() {
   const ctx = await getAuthContext();
   const canWrite =
     ctx.rol === ROLES.ADMINISTRADOR || ctx.rol === ROLES.ESTANDAR;
-  const canDarDeBaja = ctx.rol === ROLES.ADMINISTRADOR;
+  const canDarDeBaja = canWrite;
 
   return (
     <div className="space-y-6">

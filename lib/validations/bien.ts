@@ -2,6 +2,13 @@ import { z } from "zod";
 
 const MAX_CANTIDAD = 1_000_000;
 const MAX_VALOR_UNITARIO = 100_000_000_000;
+const RESPONSABLE_REQUERIDO = "Seleccione un responsable";
+
+const responsableIdSchema = z
+  .string()
+  .trim()
+  .min(1, RESPONSABLE_REQUERIDO)
+  .uuid(RESPONSABLE_REQUERIDO);
 
 /**
  * Schema usado por React Hook Form.
@@ -16,8 +23,7 @@ export const createBienSchema = z
     id_caracteristica: z.number().positive("Seleccione un tipo de bien"),
     id_sede: z.number().positive("Seleccione una sede"),
     id_area: z.number().positive("Seleccione un área"),
-    id_responsable: z.string().optional().or(z.literal("")),
-    responsable_texto: z.string().optional().or(z.literal("")),
+    id_responsable: responsableIdSchema,
     serial: z.string().optional().or(z.literal("")),
     placa: z.string().optional().or(z.literal("")),
     cantidad: z
@@ -47,8 +53,7 @@ export const createBienActionSchema = z
     id_caracteristica: z.coerce.number().positive("Seleccione un tipo de bien"),
     id_sede: z.coerce.number().positive("Seleccione una sede"),
     id_area: z.coerce.number().positive("Seleccione un área"),
-    id_responsable: z.string().optional().or(z.literal("")),
-    responsable_texto: z.string().optional().or(z.literal("")),
+    id_responsable: responsableIdSchema,
     serial: z.string().optional().or(z.literal("")),
     placa: z.string().optional().or(z.literal("")),
     cantidad: z

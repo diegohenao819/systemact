@@ -6,14 +6,16 @@ Sistema de gestión de inventario de activos físicos para [Conviventia](https:/
 
 - **Inventario** completo con fotos, códigos automáticos por tipo, valoración en COP y filtros por sede / área / tipo / estado.
 - **Categorías** (tipos de bien) con prefijos personalizables para los códigos automáticos.
-- **Transferencias** entre sedes, áreas y responsables con auditoría transaccional.
-- **Bajas** con confirmación doble, motivos tipificados y trazabilidad completa.
+- **Responsables obligatorios**: cada bien debe estar asignado a un usuario activo del sistema.
+- **Transferencias** dentro de una misma sede de forma directa; transferencias entre sedes mediante solicitud, cancelación por solicitante y aceptación/rechazo por el nuevo responsable.
+- **Aprobaciones** para solicitudes de transferencia y baja, visibles solo para administradores o usuarios involucrados.
+- **Bajas** directas cuando las solicita el responsable; si las solicita un tercero, quedan pendientes de aprobación del responsable.
 - **Reportes** de inventario por persona y trazabilidad por bien (timeline cronológico).
 - **Exportación a Excel** desde reportes, listado de bienes e historial — con formato de moneda COP, auto-filtros y panel congelado.
 - **Roles de tres niveles** (`ADMINISTRADOR`, `ESTANDAR`, `CONSULTOR`) aplicados en RLS, RPCs y guards de página.
 - **Portada pública minimalista** con acceso a login y registro.
 - **Panel de control** con timeline de actividad reciente y gráficos por sede.
-- **Auditoría** automática de todas las operaciones sobre cada bien (registro, modificación, transferencia, baja).
+- **Auditoría** automática de todas las operaciones sobre cada bien (registro, modificación, solicitudes, transferencia, baja).
 
 ## Arrancar el proyecto desde cero
 
@@ -58,7 +60,7 @@ supabase db push                        # crea todas las tablas, funciones, RLS
 psql "$DATABASE_URL" -f supabase/seed.sql   # carga sedes, áreas y tipos de bien
 ```
 
-Esto crea **9 tablas, 14 funciones/RPCs, 25 políticas RLS, 1 bucket de Storage** con un solo comando. Detalle en [supabase/README.md](supabase/README.md).
+Esto crea el esquema de inventario, solicitudes, funciones/RPCs, políticas RLS y el bucket de Storage. Detalle en [supabase/README.md](supabase/README.md).
 
 ### 3. Levantar el frontend
 
@@ -96,7 +98,7 @@ Por defecto, los usuarios nuevos quedan en rol `CONSULTOR` (modo lectura). Para 
 
 ```
 systemact/
-├── app/(dashboard)/          # Rutas autenticadas (bienes, sedes, áreas, categorías, transferencias, bajas, reportes, historial, usuarios)
+├── app/(dashboard)/          # Rutas autenticadas (bienes, sedes, áreas, categorías, transferencias, aprobaciones, bajas, reportes, historial, usuarios)
 ├── app/api/export/           # Route Handlers que devuelven .xlsx (bienes, inventario-persona, historial)
 ├── app/auth/                 # Login, registro, recuperación de contraseña
 ├── components/               # ui/, layout/, formularios reutilizables
@@ -106,7 +108,7 @@ systemact/
 │   ├── supabase/             # Clients (server, client, proxy)
 │   └── validations/          # Esquemas Zod
 ├── supabase/
-│   ├── migrations/           # 1 baseline + _archive/ con historia
+│   ├── migrations/           # Baseline + migraciones incrementales
 │   ├── seed.sql              # Catálogos de ejemplo
 │   ├── config.toml           # Config del CLI
 │   └── README.md             # Setup detallado de la BD

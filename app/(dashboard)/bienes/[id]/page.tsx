@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BienForm } from "../bien-form";
 import { requireRol, WRITE_ROLES } from "@/lib/auth/require-rol";
+import { Button } from "@/components/ui/button";
+import { LockKeyhole } from "lucide-react";
+import Link from "next/link";
 
 async function EditBienContent({ id }: { id: string }) {
   await requireRol(WRITE_ROLES);
   const supabase = await createClient();
 
-  const [bienRes, sedesRes, areasRes, caractRes, perfilesRes] =
+  const [bienRes, sedesRes, areasRes, caractRes, perfilesRes, pendienteRes] =
     await Promise.all([
       supabase
         .from("bienes")
@@ -35,10 +38,42 @@ async function EditBienContent({ id }: { id: string }) {
         .select("id, nombre, apellido, cedula")
         .eq("activo", true)
         .order("nombre"),
+      supabase.rpc("bien_tiene_solicitud_pendiente", {
+        p_id_bien: Number(id),
+      }),
     ]);
 
   if (bienRes.error || !bienRes.data) {
     notFound();
+  }
+
+  if (pendienteRes.data === true) {
+    return (
+      <div className="max-w-2xl rounded-lg border bg-card p-6">
+        <div className="flex items-start gap-3">
+          <div className="rounded-md bg-amber-100 p-2 text-amber-700 dark:bg-amber-950 dark:text-amber-200">
+            <LockKeyhole className="h-5 w-5" />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <h1 className="text-xl font-semibold">Bien bloqueado</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Este bien tiene una solicitud pendiente. No se puede editar
+                hasta que la solicitud sea aprobada o rechazada.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/aprobaciones">Ver aprobaciones</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/bienes">Volver a bienes</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
