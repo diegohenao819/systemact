@@ -1,6 +1,6 @@
 # SYSTEMACT
 
-Sistema de gestión de inventario de activos físicos para [Conviventia](https://conviventia.org). Construido con Next.js 15, Supabase y TypeScript como parte de la práctica de Ingeniería Informática (UNIR, 2026).
+Sistema de gestión de inventario de activos físicos para [Conviventia](https://conviventia.org). Construido con Next.js 16, Supabase y TypeScript como parte de la práctica de Ingeniería Informática (UNIR, 2026).
 
 ## Características
 
@@ -86,7 +86,7 @@ Por defecto, los usuarios nuevos quedan en rol `CONSULTOR` (modo lectura). Para 
 
 ## Stack
 
-- **Framework**: Next.js 15 (App Router, Server Components, Server Actions, Route Handlers).
+- **Framework**: Next.js 16 (App Router, Server Components, Server Actions, Route Handlers).
 - **Base de datos**: Supabase (Postgres + Auth + Storage + RLS).
 - **UI**: Tailwind CSS + shadcn/ui + lucide-react + recharts.
 - **Validación**: Zod en cliente y server.
@@ -113,9 +113,8 @@ systemact/
 │   ├── config.toml           # Config del CLI
 │   └── README.md             # Setup detallado de la BD
 ├── documentation/
-│   ├── CODE_GUIDE.md          # Guía para entender la arquitectura y flujos del código
-│   └── CHANGELOG.md
-└── AGENTS.md                 # Guía detallada para colaboradores y agentes
+│   └── CODE_GUIDE.md          # Guía para entender la arquitectura y flujos del código
+└── package.json
 ```
 
 ## Pruebas
@@ -138,10 +137,8 @@ Sin credenciales, Playwright omite los flujos autenticados y solo valida que las
 
 ## Documentación
 
-- [`AGENTS.md`](AGENTS.md) — guía exhaustiva del proyecto: arquitectura, modelo de datos, convenciones de código, flujos de auth.
 - [`documentation/CODE_GUIDE.md`](documentation/CODE_GUIDE.md) — guía de lectura del código para nuevos colaboradores: capas, flujos, contratos y puntos de extensión.
 - [`supabase/README.md`](supabase/README.md) — setup de la BD, modelo de roles, cómo agregar migraciones.
-- [`documentation/CHANGELOG.md`](documentation/CHANGELOG.md) — historial detallado de cambios.
 
 ## Licencia
 
